@@ -11,6 +11,9 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
 import { TodoListCard } from '@/components/TodoListCard'
 import { WorkflowBoard } from '@/components/workflow/WorkflowBoard'
+import { ActiveStepCard } from '@/components/workflow/ActiveStepCard'
+import { ConnectionsManager } from '@/components/workflow/ConnectionsManager'
+import { IntegrationType } from '@/lib/integrations'
 
 export default function ChatbotUI() {
   const { user } = useUser()
@@ -22,6 +25,17 @@ export default function ChatbotUI() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [chats, setChats] = useState<Chat[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Integration State
+  const [connectedIntegrations, setConnectedIntegrations] = useState<IntegrationType[]>([
+    'google_calendar', 'vercel', 'gmail', 'slack', 'notion' // Defaults
+  ]);
+
+  const toggleIntegration = (id: IntegrationType) => {
+    setConnectedIntegrations(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
 
   // Load chats on mount and check URL for chatId
   useEffect(() => {
@@ -176,6 +190,7 @@ export default function ChatbotUI() {
           messages: [...messages, { role: 'user', content: userMessage }],
           previous_chats: previousChats,
           context: contextString,
+          connected_contexts: connectedIntegrations // Send integrations to AI
         }),
       })
 
@@ -249,11 +264,6 @@ export default function ChatbotUI() {
     }
   }
 
-  const handleRunNode = async (nodeId: string, nodeLabel: string) => {
-    // Send message to AI that user ran the node
-    const message = `Executing workflow step: ${nodeLabel} (ID: ${nodeId})...`
-    await sendMessage(message)
-  }
 
   if (!user) {
     return (
@@ -303,20 +313,100 @@ export default function ChatbotUI() {
     )
   }
 
+  const handleRunNode = async (nodeId: string, nodeLabel: string, nodeData?: any, context?: string) => {
+    // Construct prompt for this step
+    let stepPrompt = `Execute step: ${nodeLabel}.\n`;
+    if (nodeData?.config) {
+      stepPrompt += `Configuration:\n${JSON.stringify(nodeData.config, null, 2)}\n`;
+    }
+
+    const userMessage = `Running Step: ${nodeLabel}`;
+    const userMsgId = Date.now().toString();
+    const assistantMsgId = (Date.now() + 1).toString();
+
+    // Optimistic update
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: userMessage, id: userMsgId, chat_id: currentChatId || '', created_at: new Date().toISOString() } as any,
+      { role: 'assistant', content: 'Executing...', isLoading: true, id: assistantMsgId, chat_id: currentChatId || '', created_at: new Date().toISOString() } as any
+    ]);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [...messages, { role: 'user', content: stepPrompt }],
+          previous_chats: [],
+          context: context || '',
+          mode: 'conversation',
+          connected_contexts: connectedIntegrations
+        }),
+      });
+
+      const data = await response.json();
+
+      // Update UI
+      setMessages((prev) => {
+        const newHistory = [...prev];
+        const loadMsgIndex = newHistory.findIndex(m => m.id === assistantMsgId);
+        if (loadMsgIndex !== -1) {
+          newHistory[loadMsgIndex] = {
+            ...newHistory[loadMsgIndex],
+            content: data.error ? `Error: ${data.error}` : data.content,
+            isLoading: false
+          } as any;
+        }
+        return newHistory;
+      });
+
+      setIsLoading(false);
+      return data.content || "Success";
+
+    } catch (error) {
+      console.error("Step execution failed", error);
+      setMessages((prev) => {
+        const newHistory = [...prev];
+        const loadMsgIndex = newHistory.findIndex(m => m.id === assistantMsgId);
+        if (loadMsgIndex !== -1) {
+          newHistory[loadMsgIndex] = {
+            ...newHistory[loadMsgIndex],
+            content: "Failed to execute step.",
+            isLoading: false
+          } as any;
+        }
+        return newHistory;
+      });
+      setIsLoading(false);
+      return null;
+    }
+  };
+
   return (
     <div className="flex w-full gap-2 h-[89vh]">
       {/* Sidebar */}
-      <div className="w-[20%] p-3 border-r-2 border-t-2 rounded-tr-xl border-border">
+      <div className="w-[20%] p-3 border-r-2 border-t-2 rounded-tr-xl border-border flex flex-col gap-4">
         <Button
           onClick={createNewChat}
-          className="w-full mb-4 gap-2"
+          className="w-full gap-2"
           variant="outline"
         >
           <Plus size={18} />
           New Chat
         </Button>
 
-        <div className="flex gap-3 flex-col overflow-y-auto max-h-[calc(89vh-80px)]">
+        {/* Connections Section */}
+        <ConnectionsManager
+          connectedIds={connectedIntegrations}
+          onToggle={toggleIntegration}
+        />
+
+        <div className="flex flex-col gap-2 overflow-y-auto flex-1 h-full">
+          <h3 className="text-xs font-semibold text-muted-foreground px-2 mt-2">Previous Chats</h3>
           {chats.map((chat) => (
             <div
               key={chat.id}
@@ -324,14 +414,17 @@ export default function ChatbotUI() {
               className={`w-full flex justify-between border cursor-pointer hover:bg-accent rounded-xl p-3 transition-colors ${currentChatId === chat.id ? 'bg-accent' : 'border-border'
                 }`}
             >
-              <div>
-                <p className="truncate text-sm">{chat.title}</p>
+              <div className="overflow-hidden">
+                <p className="truncate text-sm font-medium">{chat.title}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {new Date(chat.updated_at).toLocaleDateString()}
                 </p>
               </div>
-              <div>
-                <Trash2 size={15} className="cursor-pointer" onClick={() => deleteChat(chat.id)} />
+              <div className="flex items-center">
+                <Trash2 size={14} className="cursor-pointer text-muted-foreground hover:text-red-500" onClick={(e) => {
+                  e.stopPropagation();
+                  deleteChat(chat.id);
+                }} />
               </div>
             </div>
           ))}
@@ -399,27 +492,31 @@ export default function ChatbotUI() {
 
                   {/* Display Workflow Board if present */}
                   {message.metadata?.workflow && (
-                    <div className="w-full h-[500px] mb-4">
-                      <WorkflowBoard
-                        initialData={message.metadata.workflow}
-                        onRunNode={handleRunNode}
-                      />
+                    <div className="flex flex-col gap-4 w-full">
+                      <div className="w-full h-[500px] mb-4 border rounded-lg overflow-hidden bg-background/50">
+                        <WorkflowBoard
+                          initialData={message.metadata.workflow}
+                          onRunNode={handleRunNode}
+                        />
+                      </div>
                     </div>
                   )}
 
-                  {/* Display message content */}
-                  <Card
-                    className={`max-w-[70%] p-4 ${message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                      }`}
-                  >
-                    {message.role === 'assistant' ? (
-                      <MarkdownRenderer content={message.content} />
-                    ) : (
-                      <p className="whitespace-pre-wrap">{message.content}</p>
-                    )}
-                  </Card>
+                  {/* Display message content - Only if content exists */}
+                  {message.content && message.content.trim().length > 0 && (
+                    <Card
+                      className={`max-w-[70%] p-4 ${message.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                        }`}
+                    >
+                      {message.role === 'assistant' ? (
+                        <MarkdownRenderer content={message.content} />
+                      ) : (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      )}
+                    </Card>
+                  )}
                 </div>
               ))}
               {isLoading && (

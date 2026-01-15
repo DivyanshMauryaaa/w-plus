@@ -1,67 +1,113 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play, CheckCircle, Clock } from 'lucide-react';
+import { Settings, MoreHorizontal, PlayCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getIntegration, IntegrationType } from '@/lib/integrations';
 
 interface CustomNodeProps {
     data: {
         label: string;
         description: string;
-        status: 'pending' | 'active' | 'completed';
+        status: 'pending' | 'active' | 'completed' | 'failed';
+        integrationId?: IntegrationType; // New field to identify the integration
+        config?: any;
         onRun?: () => void;
+        onEdit?: () => void; // New handler for editing
     };
+    selected?: boolean; // ReactFlow passes this
 }
 
-export const CustomNode = ({ data }: CustomNodeProps) => {
+export const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
     const isCompleted = data.status === 'completed';
     const isActive = data.status === 'active';
+    const isFailed = data.status === 'failed';
+
+    // Get integration details or fallback
+    const integration = data.integrationId ? getIntegration(data.integrationId) : null;
+    const Icon = integration?.icon || Settings;
+    const color = integration?.color || '#64748b';
 
     return (
         <Card className={cn(
-            "w-[300px] border-2 shadow-sm transition-all duration-300",
-            isActive ? "border-primary shadow-md ring-2 ring-primary/20" : "border-muted",
-            isCompleted ? "bg-muted/50 border-green-500/50" : "bg-card"
+            "min-w-[200px] max-w-[250px] shadow-sm transition-all duration-300 relative group overflow-visible",
+            // Selection state
+            selected ? "ring-2 ring-primary border-primary" : "border-border",
+            // Status states
+            isActive ? "border-primary/50 shadow-md ring-1 ring-primary/20" : "",
+            isCompleted ? "border-green-500/50 bg-green-50/10" : "",
+            isFailed ? "border-red-500/50 bg-red-50/10" : "",
+            "bg-card"
         )}>
-            <Handle type="target" position={Position.Top} className="!bg-muted-foreground" />
+            {/* Input Handle */}
+            <Handle
+                type="target"
+                position={Position.Left}
+                className={cn(
+                    "!w-3 !h-3 !-left-[6px] transition-colors",
+                    selected ? "!bg-primary" : "!bg-muted-foreground"
+                )}
+            />
 
-            <CardHeader className="p-4 pb-2">
-                <div className="flex justify-between items-start">
-                    <CardTitle className="text-sm font-medium leading-none">
-                        {data.label}
-                    </CardTitle>
-                    <div className="text-xs">
-                        {isCompleted && <CheckCircle size={16} className="text-green-500" />}
-                        {isActive && <div className="animate-pulse w-3 h-3 rounded-full bg-primary" />}
-                        {!isActive && !isCompleted && <Clock size={16} className="text-muted-foreground" />}
-                    </div>
+            <div className="p-3 flex items-center gap-3">
+                {/* Icon Box */}
+                <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
+                    style={{
+                        backgroundColor: `${color}15`, // 10% opacity
+                        color: color
+                    }}
+                >
+                    <Icon size={20} />
                 </div>
-            </CardHeader>
 
-            <CardContent className="p-4 pt-2">
-                <p className="text-xs text-muted-foreground mb-4">
-                    {data.description}
-                </p>
-
-                {isActive && (
-                    <Button
-                        size="sm"
-                        className="w-full gap-2"
-                        onClick={data.onRun}
-                    >
-                        <Play size={14} /> Run Step
-                    </Button>
-                )}
-
-                {isCompleted && (
-                    <div className="w-full text-center text-xs text-green-600 font-medium py-2 bg-green-500/10 rounded">
-                        Completed
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                        <p className="text-xs font-semibold truncate pr-2">
+                            {integration?.name || 'Action'}
+                        </p>
+                        {/* Status Indicator */}
+                        <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            isActive ? "bg-primary animate-pulse" :
+                                isCompleted ? "bg-green-500" :
+                                    isFailed ? "bg-red-500" : "bg-muted-foreground/30"
+                        )} />
                     </div>
-                )}
-            </CardContent>
+                    <p className="text-[10px] text-muted-foreground truncate" title={data.label}>
+                        {data.label}
+                    </p>
+                </div>
 
-            <Handle type="source" position={Position.Bottom} className="!bg-muted-foreground" />
+                {/* Actions */}
+                <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                    <Button
+                        size="icon"
+                        variant="secondary"
+                        className="h-6 w-6 rounded-full shadow-sm hover:bg-primary hover:text-primary-foreground"
+                        onClick={(e) => {
+                            e.stopPropagation(); // Prevent node selection
+                            data.onEdit?.();
+                        }}
+                    >
+                        <MoreHorizontal size={12} />
+                    </Button>
+                </div>
+            </div>
+
+            {/* Output Handle */}
+            <Handle
+                type="source"
+                position={Position.Right}
+                className={cn(
+                    "!w-3 !h-3 !-right-[6px] transition-colors",
+                    selected ? "!bg-primary" : "!bg-muted-foreground"
+                )}
+            />
         </Card>
     );
-};
+});
+
+CustomNode.displayName = "CustomNode";
