@@ -28,5 +28,9 @@ export interface Message {
     created_at: string
     metadata?: {
         todoList?: TodoItem[]
+        workflow?: {
+            nodes: any[]
+            edges: any[]
+        }
     }
 }

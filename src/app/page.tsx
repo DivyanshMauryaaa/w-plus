@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
 import { TodoListCard } from '@/components/TodoListCard'
+import { WorkflowBoard } from '@/components/workflow/WorkflowBoard'
 
 export default function ChatbotUI() {
   const { user } = useUser()
@@ -87,8 +88,9 @@ export default function ChatbotUI() {
     setMessages([])
   }
 
-  const sendMessage = async () => {
-    if (!input.trim() || !user) return
+  const sendMessage = async (overrideText?: string) => {
+    const textToSend = typeof overrideText === 'string' ? overrideText : input
+    if (!textToSend.trim() || !user) return
 
     // Create a new chat if none exists
     let chatId = currentChatId
@@ -97,7 +99,7 @@ export default function ChatbotUI() {
         .from('chats')
         .insert({
           user_id: user.id,
-          title: input.slice(0, 50),
+          title: textToSend.slice(0, 50),
         })
         .select()
         .single()
@@ -112,8 +114,10 @@ export default function ChatbotUI() {
       setChats([data, ...chats])
     }
 
-    const userMessage = input
-    setInput('')
+    const userMessage = textToSend
+    if (!overrideText) {
+      setInput('')
+    }
     setIsLoading(true)
 
     // Save user message to database
@@ -181,10 +185,10 @@ export default function ChatbotUI() {
 
       const data = await response.json()
 
-      // Debug: Log todo list data
+      // Debug: Log todo list/workflow data
       console.log('📥 API Response received:', {
         hasTodoList: !!data.todoList,
-        todoList: data.todoList,
+        hasWorkflow: !!data.workflow,
         contentPreview: data.content?.substring(0, 100)
       })
 
@@ -196,8 +200,13 @@ export default function ChatbotUI() {
         }
       }
 
-      // Prepare metadata with todo list if present
-      const metadata = data.todoList ? { todoList: data.todoList } : undefined
+      // Prepare metadata with todo list or workflow if present
+      const metadata = data.todoList
+        ? { todoList: data.todoList }
+        : data.workflow
+          ? { workflow: data.workflow }
+          : undefined
+
       console.log('💾 Metadata to save:', metadata)
 
       // Save AI response to database
@@ -238,6 +247,12 @@ export default function ChatbotUI() {
       e.preventDefault()
       sendMessage()
     }
+  }
+
+  const handleRunNode = async (nodeId: string, nodeLabel: string) => {
+    // Send message to AI that user ran the node
+    const message = `Executing workflow step: ${nodeLabel} (ID: ${nodeId})...`
+    await sendMessage(message)
   }
 
   if (!user) {
@@ -344,7 +359,7 @@ export default function ChatbotUI() {
               />
               <Button
                 className="py-7 px-5 cursor-pointer"
-                onClick={sendMessage}
+                onClick={() => sendMessage()}
                 disabled={isLoading || !input.trim()}
               >
                 {isLoading ? (
@@ -382,6 +397,16 @@ export default function ChatbotUI() {
                     </div>
                   )}
 
+                  {/* Display Workflow Board if present */}
+                  {message.metadata?.workflow && (
+                    <div className="w-full h-[500px] mb-4">
+                      <WorkflowBoard
+                        initialData={message.metadata.workflow}
+                        onRunNode={handleRunNode}
+                      />
+                    </div>
+                  )}
+
                   {/* Display message content */}
                   <Card
                     className={`max-w-[70%] p-4 ${message.role === 'user'
@@ -403,7 +428,7 @@ export default function ChatbotUI() {
                     <div className="flex items-center gap-2">
                       <Loader2 size={16} className="animate-spin" />
                       <p className="text-sm text-muted-foreground">
-                        AI is thinking...
+                        Carl is thinking...
                       </p>
                     </div>
                   </Card>
@@ -424,7 +449,7 @@ export default function ChatbotUI() {
                 />
                 <Button
                   className="py-7 px-5 cursor-pointer"
-                  onClick={sendMessage}
+                  onClick={() => sendMessage()}
                   disabled={isLoading || !input.trim()}
                 >
                   {isLoading ? (

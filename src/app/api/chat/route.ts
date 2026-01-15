@@ -157,6 +157,87 @@ Guidelines:
 - Use clear, concise language
 - Include 3-10 tasks typically (adjust based on complexity)`
 
+const WORKFLOW_PROMPT = `You are Carl, an advanced Workflow Architect.
+
+Your goal is to design a comprehensive, step-by-step execution workflow for complex user tasks.
+Unlike a simple todo list, this is a "node-based" workflow where each step is a discrete unit of work that can be executed.
+
+PROMPT:
+Analyze the user's request and create a detailed graph of nodes and edges.
+
+REQUIRED JSON FORMAT (must be in a \`\`\`json code block):
+\`\`\`json
+{
+  "nodes": [
+    { 
+      "id": "1", 
+      "type": "custom", 
+      "data": { 
+        "label": "Step Name", 
+        "description": "Detailed explanation of what this step does", 
+        "status": "active" // Only the first node should be 'active', others 'pending'
+      }, 
+      "position": { "x": 0, "y": 0 } 
+    },
+    { 
+      "id": "2", 
+      "type": "custom", 
+      "data": { 
+        "label": "Next Step", 
+        "description": "...", 
+        "status": "pending" 
+      }, 
+      "position": { "x": 0, "y": 150 } 
+    }
+  ],
+  "edges": [
+    { "id": "e1-2", "source": "1", "target": "2" }
+  ]
+}
+\`\`\`
+
+GUIDELINES:
+1. **Granularity**: Break tasks down into runnable chunks (e.g., "Search for X", "Analyze Y", "Generate Report").
+2. **Sequential Flow**: Ensure edges connect nodes logically. Connect them linearly unless parallel execution makes sense.
+3. **Positioning**: Calculate 'y' position as index * 150 to space them out vertically.
+4. **Status**: 
+   - Node 1: "active" (ready to run)
+   - Others: "pending"
+   - If User says "Green light" or "Start", the first node is ready.
+5. **Labels**: Short, action-oriented titles.
+6. **Descriptions**: Specific instructions for the agent (you) to execute when that node is run.`
+
+// Extract workflow from AI response if present
+function extractWorkflow(text: string): { workflow: any | null; cleanedText: string } {
+    console.log('🔍 Extracting workflow from response')
+
+    // Regex to find the JSON object containing "nodes" and "edges"
+    const patterns = [
+        /```json\s*(\{[\s\S]*?"nodes"[\s\S]*?"edges"[\s\S]*?\})\s*\`\`\`/,
+        /```\s*(\{[\s\S]*?"nodes"[\s\S]*?"edges"[\s\S]*?\})\s*\`\`\`/,
+        /(\{[\s\S]*?"nodes"[\s\S]*?"edges"[\s\S]*?\})/
+    ]
+
+    for (const regex of patterns) {
+        const match = text.match(regex)
+        if (match) {
+            try {
+                const workflow = JSON.parse(match[1])
+                console.log('✅ Successfully parsed workflow:', workflow.nodes?.length, 'nodes')
+
+                if (Array.isArray(workflow.nodes) && Array.isArray(workflow.edges)) {
+                    const cleanedText = text.replace(match[0], '').trim()
+                    return { workflow, cleanedText }
+                }
+            } catch (e) {
+                console.error('❌ Failed to parse workflow JSON:', e)
+            }
+        }
+    }
+
+    return { workflow: null, cleanedText: text }
+}
+
 // ============================================================================
 // CORE AI FUNCTIONS
 // ============================================================================
@@ -169,77 +250,72 @@ Guidelines:
  * @param model - The AI model instance
  * @returns Object containing todo list and response message
  */
+// Update DoOperation to handle both Todo Lists and Workflows
 async function DoOperation(
     prompt: string,
     conversationContext: string = '',
     activeContext: string = '',
-    model: any
-): Promise<{ todoList: any[] | null; message: string; rawResponse: string }> {
-    console.log('🔧 OPERATION MODE: Generating todo list for:', prompt.substring(0, 100))
+    model: any,
+    mode: 'todo' | 'workflow' = 'todo' // Default to todo for backward compatibility
+): Promise<{
+    todoList: any[] | null;
+    workflow: any | null;
+    message: string;
+    rawResponse: string
+}> {
+    console.log(`🔧 OPERATION MODE (${mode}): Generating plan for:`, prompt.substring(0, 100))
 
-    // Build the operational prompt
-    let fullPrompt = OPERATIONAL_PROMPT + '\n\n'
+    // Choose the appropriate system prompt
+    const systemPrompt = mode === 'workflow' ? WORKFLOW_PROMPT : OPERATIONAL_PROMPT
+
+    let fullPrompt = systemPrompt + '\n\n'
 
     if (conversationContext) {
         fullPrompt += `[Context from previous conversation]:\n${conversationContext}\n\n`
     }
 
-    // Parse and format metadata context if present
     if (activeContext) {
         try {
             const metadataContext = JSON.parse(activeContext)
             if (Array.isArray(metadataContext) && metadataContext.length > 0) {
-                console.log('📋 Including metadata context:', metadataContext.length, 'items')
-                fullPrompt += `[Previous metadata context - Todo lists and other data from earlier messages]:\n`
-
-                metadataContext.forEach((item, index) => {
-                    fullPrompt += `\nMessage ${index + 1} (${item.role}):\n`
-                    fullPrompt += `Content: ${item.content}\n`
-                    if (item.metadata?.todoList) {
-                        fullPrompt += `Todo List:\n${JSON.stringify(item.metadata.todoList, null, 2)}\n`
-                    }
-                    if (item.metadata && Object.keys(item.metadata).length > 0) {
-                        fullPrompt += `Other Metadata: ${JSON.stringify(item.metadata, null, 2)}\n`
-                    }
-                })
-                fullPrompt += '\n'
+                fullPrompt += `[Previous metadata context]:\n`
+                // ... (keep existing context parsing logic simplistic for now to save tokens)
+                fullPrompt += JSON.stringify(metadataContext.slice(-3)) + '\n\n'
             }
-        } catch (e) {
-            console.warn('⚠️ Failed to parse metadata context:', e)
-        }
+        } catch (e) { }
     }
 
-    fullPrompt += `User's task: ${prompt}\n\nGenerate a comprehensive todo list for this task.`
+    fullPrompt += `User's task: ${prompt}\n\nGenerate the required JSON plan.`
 
-    // Generate response
     const result = await model.generateContent(fullPrompt)
     const response = await result.response
     const text = response.text()
 
-    console.log('🤖 OPERATION RESPONSE:', text)
+    console.log('🤖 OPERATION RESPONSE:', text.substring(0, 200))
 
-    // Extract todo list
-    const { todoList, cleanedText } = extractTodoList(text)
+    // Extract based on mode
+    let todoList = null
+    let workflow = null
+    let cleanedText = text
 
-    if (!todoList) {
-        console.warn('⚠️ Operation mode failed to generate todo list')
+    if (mode === 'workflow') {
+        const extracted = extractWorkflow(text)
+        workflow = extracted.workflow
+        cleanedText = extracted.cleanedText
+    } else {
+        const extracted = extractTodoList(text)
+        todoList = extracted.todoList
+        cleanedText = extracted.cleanedText
     }
 
     return {
         todoList,
+        workflow,
         message: cleanedText,
         rawResponse: text
     }
 }
 
-/**
- * HandleConversation - Handles conversational mode for general chat
- * @param prompt - The user's message
- * @param conversationContext - Previous conversation context
- * @param activeContext - Metadata context with todo lists and other data (JSON string)
- * @param model - The AI model instance
- * @returns The AI's conversational response
- */
 async function HandleConversation(
     prompt: string,
     conversationContext: string = '',
@@ -271,8 +347,11 @@ async function HandleConversation(
                             fullPrompt += `   - [${todo.completed ? 'x' : ' '}] ${todo.text}\n`
                         })
                     }
+                    if (item.metadata?.workflow) {
+                        fullPrompt += `   Associated Workflow (${item.metadata.workflow.nodes.length} nodes)\n`
+                    }
                 })
-                fullPrompt += '\nYou can reference these todo lists in your responses.\n\n'
+                fullPrompt += '\nYou can reference these todo lists/workflows in your responses.\n\n'
             }
         } catch (e) {
             console.warn('⚠️ Failed to parse metadata context in conversation:', e)
@@ -301,7 +380,7 @@ export async function POST(req: NextRequest) {
             messages,
             context = '',
             previous_chats = [],
-            mode = 'auto' // 'auto', 'conversation', 'operation'
+            mode = 'auto' // 'auto', 'conversation', 'operation', 'workflow'
         } = await req.json()
 
         if (!messages || !Array.isArray(messages)) {
@@ -336,8 +415,12 @@ export async function POST(req: NextRequest) {
         const userPrompt = lastMessage.content
 
         // Detect if user wants operational mode (auto-detect or explicit)
+        // Expanded regex for workflow keywords - Now includes planning verbs to default to Workflow
+        const isWorkflowRequest = mode === 'workflow' ||
+            (mode === 'auto' && /\b(workflow|node|graph|pipeline|automate|script|flow|plan|create|build|make)\b/i.test(userPrompt))
+
         const isOperationalRequest = mode === 'operation' ||
-            (mode === 'auto' && /\b(help me|plan|organize|create|build|make|todo|task|step|guide)\b/i.test(userPrompt))
+            (mode === 'auto' && /\b(help me|organize|todo|task|step|guide|list)\b/i.test(userPrompt))
 
         let responseData: any = {
             tokens_used: totalTokens,
@@ -346,14 +429,29 @@ export async function POST(req: NextRequest) {
             ai_triggered_operation: false
         }
 
-        if (isOperationalRequest && mode === 'operation') {
+        if (isWorkflowRequest) {
+            console.log('🎯 Workflow generation mode requested')
+            const { workflow, message } = await DoOperation(
+                userPrompt,
+                conversationContext,
+                context,
+                model,
+                'workflow'
+            )
+            responseData.content = message
+            responseData.workflow = workflow
+            responseData.operation_triggered = true
+            responseData.mode_used = 'workflow'
+
+        } else if (isOperationalRequest) {
             // EXPLICIT OPERATION MODE: Directly generate todo list
             console.log('🎯 Explicit operation mode requested')
             const { todoList, message } = await DoOperation(
                 userPrompt,
                 conversationContext,
                 context,
-                model
+                model,
+                'todo'
             )
 
             responseData.content = message
@@ -375,22 +473,25 @@ export async function POST(req: NextRequest) {
 
             if (triggered && operationPrompt) {
                 // AI TRIGGERED OPERATION: Run DoOperation with AI's prompt
+                // Defaulting to 'todo' for now as the AI tag <doOperation> doesn't specify mode yet.
+                // We could enhance the tag parsing to support <doWorkflow> in the future.
                 console.log('🤖 AI triggered operation mode!')
                 console.log('   AI\'s operation prompt:', operationPrompt)
 
-                const { todoList, message: operationMessage } = await DoOperation(
+                const { workflow, message: operationMessage } = await DoOperation(
                     operationPrompt,
                     conversationContext,
                     context,
-                    model
+                    model,
+                    'workflow' // Default to workflow for AI-triggered tasks
                 )
 
                 // Combine the conversational message with operation result
                 responseData.content = messageBeforeTrigger
-                responseData.todoList = todoList
+                responseData.workflow = workflow // Update to attach workflow instead of todoList
                 responseData.operation_triggered = true
                 responseData.ai_triggered_operation = true
-                responseData.mode_used = 'conversation->operation'
+                responseData.mode_used = 'conversation->workflow'
                 responseData.operation_message = operationMessage // Additional context from operation
             } else {
                 // PURE CONVERSATION: No operation triggered
@@ -404,8 +505,9 @@ export async function POST(req: NextRequest) {
         console.log('📤 Sending response:', {
             mode: responseData.mode_used,
             hasTodoList: !!responseData.todoList,
+            hasWorkflow: !!responseData.workflow,
             aiTriggered: responseData.ai_triggered_operation,
-            contentPreview: responseData.content.substring(0, 100)
+            contentPreview: responseData.content?.substring(0, 100)
         })
 
         return NextResponse.json(responseData)
