@@ -1,7 +1,6 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { ArrowUp, Plus, Loader2, Trash2 } from 'lucide-react'
 import React, { useState, useRef, useEffect } from 'react'
 import { supabase, type Chat, type Message, type TodoItem } from '@/lib/supabase'
@@ -11,7 +10,6 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
 import { TodoListCard } from '@/components/TodoListCard'
 import { WorkflowBoard } from '@/components/workflow/WorkflowBoard'
-import { ActiveStepCard } from '@/components/workflow/ActiveStepCard'
 import { ConnectionsManager } from '@/components/workflow/ConnectionsManager'
 import { ActionType } from '@/lib/integrations'
 import { Textarea } from '@/components/ui/textarea'
@@ -498,7 +496,7 @@ export default function ChatbotUI() {
           <div className="m-auto flex w-[60%] m-auto flex-col justify-center">
             <div className="mb-8">
               <p className="text-2xl font-bold text-center">
-                AI knows your workspace to complete a task
+                Your business, understood. Your work, executed.
               </p>
             </div>
             <div className="flex gap-3">

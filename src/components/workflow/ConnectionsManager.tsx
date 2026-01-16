@@ -118,7 +118,7 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
 
         // If we are trying to ENABLE (not disable), check if configured
         if (!allConnected) {
-            const needsConfig = CREDENTIAL_KEYS.hasOwnProperty(platform) || ['Google', 'Slack', 'Notion'].some(p => platform.includes(p));
+            const needsConfig = CREDENTIAL_KEYS.hasOwnProperty(platform) || OAUTH_PROVIDERS.some(p => platform.includes(p));
             // Since configuredPlatforms is state, we can use it
             const isConfigured = !needsConfig || configuredPlatforms[platform];
 
@@ -156,7 +156,7 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
                         const isFullyConnected = connectedCount === platformActions.length;
                         const isPartiallyConnected = connectedCount > 0 && !isFullyConnected;
 
-                        const needsConfig = CREDENTIAL_KEYS.hasOwnProperty(platform) || ['Google', 'Slack', 'Notion'].some(p => platform.includes(p));
+                        const needsConfig = CREDENTIAL_KEYS.hasOwnProperty(platform) || OAUTH_PROVIDERS.some(p => platform.includes(p));
                         const isConfigured = !needsConfig || configuredPlatforms[platform];
 
                         return (
