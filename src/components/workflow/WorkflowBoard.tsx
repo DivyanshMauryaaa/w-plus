@@ -14,7 +14,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { CustomNode } from './CustomNode';
 import { Button } from '@/components/ui/button';
-import { Play } from 'lucide-react';
+import { Play, ChevronDown, ChevronRight } from 'lucide-react';
 // import { toast } from 'sonner'; 
 import { NodeEditor } from './NodeEditor';
 
@@ -25,6 +25,7 @@ const nodeTypes = {
 interface WorkflowData {
     nodes: Node[];
     edges: Edge[];
+    title?: string;
 }
 
 interface WorkflowBoardProps {
@@ -36,6 +37,7 @@ export const WorkflowBoard = ({ initialData, onRunNode }: WorkflowBoardProps) =>
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [isRunning, setIsRunning] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(true);
 
     // Editor State
     const [editorOpen, setEditorOpen] = useState(false);
@@ -93,8 +95,13 @@ export const WorkflowBoard = ({ initialData, onRunNode }: WorkflowBoardProps) =>
         }));
     };
 
-    const handleRunWorkflow = async () => {
+    const handleRunWorkflow = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+
         setIsRunning(true);
+        // Auto-expand on run so user sees progress
+        setIsCollapsed(false);
+
         const executionResults: Record<string, any> = {};
 
         try {
@@ -138,30 +145,44 @@ export const WorkflowBoard = ({ initialData, onRunNode }: WorkflowBoardProps) =>
     );
 
     return (
-        <div style={{ width: '100%', height: '500px', position: 'relative' }}>
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                nodeTypes={nodeTypes}
-                fitView
+        <div className={`w-full border rounded-lg bg-background/50 overflow-hidden transition-all duration-300 ${isCollapsed ? 'h-auto' : 'h-[500px]'}`}>
+            {/* Header / Accordion Trigger */}
+            <div
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 border-b border-border/50"
+                onClick={() => setIsCollapsed(!isCollapsed)}
             >
-                <Background color="#aaa" gap={16} />
-                <Controls />
-                <MiniMap />
-                <Panel position="top-right">
-                    <Button
-                        onClick={handleRunWorkflow}
-                        disabled={isRunning}
-                        className="bg-green-600 hover:bg-green-700 text-white shadow-lg"
-                    >
-                        <Play size={16} className="mr-2 fill-current" />
-                        {isRunning ? 'Running...' : 'Run Workflow'}
-                    </Button>
-                </Panel>
-            </ReactFlow>
+                <div className="flex items-center gap-2">
+                    {isCollapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
+                    <h3 className="font-semibold text-sm">{initialData.title || "Task"}</h3>
+                    <span className="text-xs text-muted-foreground ml-2">({nodes.length} Steps)</span>
+                </div>
+
+                <Button
+                    onClick={handleRunWorkflow}
+                    disabled={isRunning}
+                    size="sm"
+                >
+                    <Play size={14} className="mr-2 fill-current" />
+                    {isRunning ? 'Running...' : 'Run Workflow'}
+                </Button>
+            </div>
+
+            <div className={`w-full h-[440px] relative ${isCollapsed ? 'hidden' : 'block'}`}>
+                <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={onConnect}
+                    nodeTypes={nodeTypes}
+                    fitView
+                >
+                    <Background color="#aaa" gap={16} />
+                    <Controls />
+                    <MiniMap />
+                    {/* Removed Panels as functionality moved to header */}
+                </ReactFlow>
+            </div>
 
             <NodeEditor
                 nodeId={editingNodeId}

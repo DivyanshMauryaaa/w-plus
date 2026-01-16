@@ -1,68 +1,108 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { SUPPORTED_INTEGRATIONS, IntegrationType } from '@/lib/integrations';
-import { Check, Plus, Trash2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { SUPPORTED_ACTIONS, ActionType } from '@/lib/integrations';
+import { Check, Plus } from 'lucide-react';
 
 interface ConnectionsManagerProps {
-    connectedIds: IntegrationType[];
-    onToggle: (id: IntegrationType) => void;
+    connectedIds: ActionType[];
+    onToggle: (id: ActionType) => void;
 }
 
 export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManagerProps) => {
+    // 1. Group actions by platform
+    const platforms = Array.from(new Set(SUPPORTED_ACTIONS.map(a => a.platform))).sort();
+
+    const handlePlatformToggle = (platform: string) => {
+        const platformActions = SUPPORTED_ACTIONS.filter(a => a.platform === platform);
+        const allConnected = platformActions.every(a => connectedIds.includes(a.id));
+
+        // If all are connected, we want to disconnect all (toggle each off)
+        // If some or none are connected, we want to connect all missing ones
+        platformActions.forEach(action => {
+            if (allConnected) {
+                // If currently connected, toggle it (to disconnect)
+                if (connectedIds.includes(action.id)) {
+                    onToggle(action.id);
+                }
+            } else {
+                // If not connected, toggle it (to connect)
+                if (!connectedIds.includes(action.id)) {
+                    onToggle(action.id);
+                }
+            }
+        });
+    };
+
     return (
         <Card className="w-full">
             <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Connected Apps</CardTitle>
+                <CardTitle className="text-lg">Connected Platforms</CardTitle>
                 <CardDescription>
-                    Manage the services your AI agent can access.
+                    Connect apps to enable their actions for your AI agent.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2">
-                {SUPPORTED_INTEGRATIONS.map((integration) => {
-                    const isConnected = connectedIds.includes(integration.id);
-                    const Icon = integration.icon;
+            <CardContent className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2">
+                {platforms.map((platform) => {
+                    const platformActions = SUPPORTED_ACTIONS.filter(a => a.platform === platform);
+                    // We just need one action to grab the icon and color
+                    const representative = platformActions[0];
+                    const Icon = representative.icon;
+
+                    // Check connection status
+                    const connectedCount = platformActions.filter(a => connectedIds.includes(a.id)).length;
+                    const isFullyConnected = connectedCount === platformActions.length;
+                    const isPartiallyConnected = connectedCount > 0 && !isFullyConnected;
 
                     return (
                         <div
-                            key={integration.id}
-                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${isConnected
+                            key={platform}
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${isFullyConnected
                                     ? 'bg-primary/5 border-primary/20'
                                     : 'bg-card border-border hover:bg-accent/50'
                                 }`}
                         >
                             <div className="flex items-center gap-3">
                                 <div
-                                    className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+                                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
                                     style={{
-                                        backgroundColor: isConnected ? `${integration.color}20` : '#f4f4f5',
-                                        color: isConnected ? integration.color : '#71717a'
+                                        backgroundColor: isFullyConnected || isPartiallyConnected ? `${representative.color}20` : '#f4f4f5',
+                                        color: isFullyConnected || isPartiallyConnected ? representative.color : '#71717a'
                                     }}
                                 >
-                                    <Icon size={16} />
+                                    <Icon size={20} />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium">{integration.name}</p>
-                                    <p className="text-xs text-muted-foreground line-clamp-1">
-                                        {integration.description}
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-semibold">{platform}</p>
+                                        {isPartiallyConnected && (
+                                            <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">
+                                                Partially Active
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {platformActions.length} Action{platformActions.length !== 1 ? 's' : ''} available
                                     </p>
                                 </div>
                             </div>
 
                             <Button
                                 size="sm"
-                                variant={isConnected ? "secondary" : "outline"}
-                                className={isConnected ? "text-green-600 bg-green-50 hover:bg-green-100" : ""}
-                                onClick={() => onToggle(integration.id)}
+                                variant={isFullyConnected ? "secondary" : "outline"}
+                                className={isFullyConnected ? "text-green-600 bg-green-50 hover:bg-green-100 h-8 px-3" : "h-8 px-3"}
+                                onClick={() => handlePlatformToggle(platform)}
                             >
-                                {isConnected ? (
-                                    <>
-                                        <Check size={14} className="mr-1" /> Connected
-                                    </>
+                                {isFullyConnected ? (
+                                    <div className="flex items-center gap-1.5">
+                                        <Check size={14} />
+                                        <span className="text-xs">Connected</span>
+                                    </div>
                                 ) : (
-                                    <>
-                                        <Plus size={14} className="mr-1" /> Connect
-                                    </>
+                                    <div className="flex items-center gap-1.5">
+                                        <Plus size={14} />
+                                        <span className="text-xs">Connect</span>
+                                    </div>
                                 )}
                             </Button>
                         </div>

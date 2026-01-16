@@ -11,17 +11,17 @@ import {
     SheetDescription,
     SheetFooter,
 } from '@/components/ui/sheet';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { IntegrationType, getIntegration } from '@/lib/integrations';
-import { Wand2, Type } from 'lucide-react';
+import { ActionType, getAction } from '@/lib/integrations';
+import { Wand2 } from 'lucide-react';
 
 interface NodeData {
     id: string;
     label: string;
     description: string;
     status: string;
-    integrationId?: IntegrationType;
+    actionId?: ActionType; // Renamed from integrationId
     config?: {
         prompt?: string;
         // Legacy: key: value
@@ -88,10 +88,13 @@ export const NodeEditor = ({ nodeId, initialData, open, onOpenChange, onSave }: 
         }));
     };
 
-    const integration = initialData?.integrationId ? getIntegration(initialData.integrationId) : null;
+    // Use getAction instead of getIntegration
+    // Fallback: check integrationId for backward compatibility during dev, though user said "right now", so we can assume we're migrating.
+    const actionId = initialData?.actionId || (initialData as any)?.integrationId;
+    const action = actionId ? getAction(actionId) : null;
 
     // Fallback fields for generic nodes or if no schema
-    const fields = integration?.fields || [];
+    const fields = action?.fields || [];
 
     // Helper to get current field state safely
     const getFieldState = (key: string) => {
@@ -104,15 +107,20 @@ export const NodeEditor = ({ nodeId, initialData, open, onOpenChange, onSave }: 
                 <SheetHeader>
                     <SheetTitle>Edit Workflow Step</SheetTitle>
                     <SheetDescription>
-                        Customize how this {integration?.name || 'step'} executes.
+                        Customize how this {action?.name || 'step'} executes.
                     </SheetDescription>
                 </SheetHeader>
 
                 <div className="grid gap-6 py-6">
-                    {integration && (
+                    {action && (
                         <div className="flex items-center gap-2 p-3 bg-muted rounded-lg border">
-                            <integration.icon size={20} style={{ color: integration.color }} />
-                            <span className="font-semibold">{integration.name}</span>
+                            <div className="p-2 rounded bg-background border">
+                                <action.icon size={20} style={{ color: action.color }} />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="font-semibold leading-none">{action.name}</span>
+                                <span className="text-xs text-muted-foreground mt-1">Platform: {action.platform}</span>
+                            </div>
                         </div>
                     )}
 
@@ -137,7 +145,7 @@ export const NodeEditor = ({ nodeId, initialData, open, onOpenChange, onSave }: 
                     {/* Render Fields based on Schema */}
                     {fields.length > 0 ? (
                         <div className="space-y-4 border-t pt-4">
-                            <h4 className="font-medium text-sm text-foreground">Configuration</h4>
+                            <h4 className="font-medium text-sm text-foreground">Action Configuration</h4>
                             {fields.map((field) => {
                                 const state = getFieldState(field.key);
 

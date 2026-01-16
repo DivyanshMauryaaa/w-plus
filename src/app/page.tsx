@@ -13,7 +13,7 @@ import { TodoListCard } from '@/components/TodoListCard'
 import { WorkflowBoard } from '@/components/workflow/WorkflowBoard'
 import { ActiveStepCard } from '@/components/workflow/ActiveStepCard'
 import { ConnectionsManager } from '@/components/workflow/ConnectionsManager'
-import { IntegrationType } from '@/lib/integrations'
+import { ActionType } from '@/lib/integrations'
 
 export default function ChatbotUI() {
   const { user } = useUser()
@@ -27,12 +27,12 @@ export default function ChatbotUI() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Integration State
-  const [connectedIntegrations, setConnectedIntegrations] = useState<IntegrationType[]>([
-    'google_calendar', 'vercel', 'gmail', 'slack', 'notion' // Defaults
+  const [enabledActions, setEnabledActions] = useState<ActionType[]>([
+    'calendar_create_event', 'calendar_get_events', 'gmail_send_email', 'gmail_search', 'slack_send_message' // Defaults
   ]);
 
-  const toggleIntegration = (id: IntegrationType) => {
-    setConnectedIntegrations(prev =>
+  const toggleAction = (id: ActionType) => {
+    setEnabledActions(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
@@ -190,7 +190,7 @@ export default function ChatbotUI() {
           messages: [...messages, { role: 'user', content: userMessage }],
           previous_chats: previousChats,
           context: contextString,
-          connected_contexts: connectedIntegrations // Send integrations to AI
+          connected_contexts: enabledActions // Send actions to AI
         }),
       })
 
@@ -344,7 +344,7 @@ export default function ChatbotUI() {
           previous_chats: [],
           context: context || '',
           mode: 'conversation',
-          connected_contexts: connectedIntegrations
+          connected_contexts: enabledActions
         }),
       });
 
@@ -401,8 +401,8 @@ export default function ChatbotUI() {
 
         {/* Connections Section */}
         <ConnectionsManager
-          connectedIds={connectedIntegrations}
-          onToggle={toggleIntegration}
+          connectedIds={enabledActions}
+          onToggle={toggleAction}
         />
 
         <div className="flex flex-col gap-2 overflow-y-auto flex-1 h-full">
@@ -493,12 +493,10 @@ export default function ChatbotUI() {
                   {/* Display Workflow Board if present */}
                   {message.metadata?.workflow && (
                     <div className="flex flex-col gap-4 w-full">
-                      <div className="w-full h-[500px] mb-4 border rounded-lg overflow-hidden bg-background/50">
-                        <WorkflowBoard
-                          initialData={message.metadata.workflow}
-                          onRunNode={handleRunNode}
-                        />
-                      </div>
+                      <WorkflowBoard
+                        initialData={message.metadata.workflow}
+                        onRunNode={handleRunNode}
+                      />
                     </div>
                   )}
 

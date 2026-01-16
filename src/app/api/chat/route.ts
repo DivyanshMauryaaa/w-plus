@@ -159,9 +159,9 @@ Guidelines:
 
 const WORKFLOW_PROMPT = `You are Carl, an advanced Workflow Architect.
 
-Your goal is to build runnable workflows connecting the user's apps.
-The user has SPECIFIC apps connected. You MUST only use those integrationIds if connected.
-If an app is NOT connected, use "generic_action" or "generic_request" and mention it in the description.
+Your goal is to build runnable workflows connecting the user's apps via specific ACTIONS.
+The user has SPECIFIC actions enabled. You MUST only use those actionIds if enabled.
+If an action is NOT enabled, use "generic_action" or "http_request" and mention it in the description.
 
 PROMPT:
 Analyze the request.
@@ -171,6 +171,7 @@ Include a "config" object for EVERY node with editable parameters (prompts, targ
 REQUIRED JSON FORMAT (must be in a \`\`\`json code block):
 \`\`\`json
 {
+  "title": "Post-Launch Protocol", 
   "nodes": [
     { 
       "id": "1", 
@@ -179,9 +180,9 @@ REQUIRED JSON FORMAT (must be in a \`\`\`json code block):
         "label": "Fetch Emails", 
         "description": "Get latest emails from Gmail", 
         "status": "pending",
-        "integrationId": "gmail",
+        "actionId": "gmail_search",
         "config": {
-            "prompt": "Find emails from 'Client X' in the last 24h",
+            "query": "from:boss",
              "max_results": 5
         }
       }, 
@@ -193,14 +194,14 @@ REQUIRED JSON FORMAT (must be in a \`\`\`json code block):
 \`\`\`
 
 GUIDELINES:
-1. **Integrations**: Check the [User's Connected Apps] list below. Only use IDs from that list.
-2. **Config**: For every node, add a "config" object.
-   - For AI Text steps: Add "prompt" (the instruction for the node).
-   - For Slack: Add "channel", "message".
-   - For Http: Add "url", "method".
-   - The User will EDIT these configs, so make them detailed defaults.
-3. **Layout**: Horizontal flow (x: 0 -> 300 -> 600).
-4. **Status**: "pending" by default.`
+1. **Title**: Generate a creative, short, and descriptive title for the workflow (e.g. "Morning Briefing", "Lead Gen Loop").
+2. **Actions**: Check the [User's Enabled Actions] list below. Only use IDs from that list.
+3. **Config**: For every node, add a "config" object matching the action's fields.
+   - For generic nodes: Add "prompt".
+   - For specific actions: Use the fields defined for that action (e.g. 'channel', 'text' for slack).
+   - Use default placeholders if specific values aren't provided.
+4. **Layout**: Horizontal flow (x: 0 -> 300 -> 600).
+5. **Status**: "pending" by default.`
 
 // Extract workflow from AI response if present
 function extractWorkflow(text: string): { workflow: any | null; cleanedText: string } {
@@ -274,7 +275,7 @@ async function DoOperation(
     // Add Connected Apps Context
     if (mode === 'workflow') {
         const available = connectedIntegrations.length > 0 ? connectedIntegrations.join(', ') : "None";
-        fullPrompt += `[User's Connected Apps]: ${available}\n(Only use these integrationIds, otherwise use generic)\n\n`;
+        fullPrompt += `[User's Enabled Actions]: ${available}\n(Only use these actionIds, otherwise use generic)\n\n`;
     }
 
     if (conversationContext) {

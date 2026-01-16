@@ -2,19 +2,19 @@ import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, MoreHorizontal, PlayCircle } from 'lucide-react';
+import { Settings, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getIntegration, IntegrationType } from '@/lib/integrations';
+import { getAction, ActionType } from '@/lib/integrations';
 
 interface CustomNodeProps {
     data: {
         label: string;
         description: string;
         status: 'pending' | 'active' | 'completed' | 'failed';
-        integrationId?: IntegrationType; // New field to identify the integration
+        actionId?: ActionType; // Renamed from integrationId
         config?: any;
         onRun?: () => void;
-        onEdit?: () => void; // New handler for editing
+        onEdit?: () => void;
     };
     selected?: boolean; // ReactFlow passes this
 }
@@ -24,10 +24,12 @@ export const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
     const isActive = data.status === 'active';
     const isFailed = data.status === 'failed';
 
-    // Get integration details or fallback
-    const integration = data.integrationId ? getIntegration(data.integrationId) : null;
-    const Icon = integration?.icon || Settings;
-    const color = integration?.color || '#64748b';
+    // Get action details or fallback
+    // Backward compat: check also for integrationId if it exists in data
+    const actionId = data.actionId || (data as any).integrationId;
+    const action = actionId ? getAction(actionId) : null;
+    const Icon = action?.icon || Settings;
+    const color = action?.color || '#64748b';
 
     return (
         <Card className={cn(
@@ -66,7 +68,7 @@ export const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
                         <p className="text-xs font-semibold truncate pr-2">
-                            {integration?.name || 'Action'}
+                            {action?.name || 'Action'}
                         </p>
                         {/* Status Indicator */}
                         <div className={cn(
@@ -76,6 +78,11 @@ export const CustomNode = memo(({ data, selected }: CustomNodeProps) => {
                                     isFailed ? "bg-red-500" : "bg-muted-foreground/30"
                         )} />
                     </div>
+                    {action?.platform && (
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5 font-medium">
+                            {action.platform}
+                        </p>
+                    )}
                     <p className="text-[10px] text-muted-foreground truncate" title={data.label}>
                         {data.label}
                     </p>
