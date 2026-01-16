@@ -14,6 +14,7 @@ import { WorkflowBoard } from '@/components/workflow/WorkflowBoard'
 import { ActiveStepCard } from '@/components/workflow/ActiveStepCard'
 import { ConnectionsManager } from '@/components/workflow/ConnectionsManager'
 import { ActionType } from '@/lib/integrations'
+import { Textarea } from '@/components/ui/textarea'
 
 export default function ChatbotUI() {
   const { user } = useUser()
@@ -314,6 +315,65 @@ export default function ChatbotUI() {
   }
 
   const handleRunNode = async (nodeId: string, nodeLabel: string, nodeData?: any, context?: string) => {
+    // Check if we have a specific actionID to execute via the new API
+    if (nodeData?.actionId) {
+      console.log(`🚀 Executing node ${nodeLabel} via API:`, nodeData.actionId);
+
+      const userMsgId = Date.now().toString();
+      const assistantMsgId = (Date.now() + 1).toString();
+
+      // Optimistic update
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: `Running Action: ${nodeLabel}`, id: userMsgId, chat_id: currentChatId || '', created_at: new Date().toISOString() } as any,
+        { role: 'assistant', content: 'Processing...', isLoading: true, id: assistantMsgId, chat_id: currentChatId || '', created_at: new Date().toISOString() } as any
+      ]);
+      setIsLoading(true);
+
+      try {
+        const response = await fetch('/api/execute/task', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actionId: nodeData.actionId,
+            config: nodeData.config
+          })
+        });
+
+        const result = await response.json();
+
+        // Update UI
+        setMessages((prev) => {
+          const newHistory = [...prev];
+          const loadMsgIndex = newHistory.findIndex(m => m.id === assistantMsgId);
+          if (loadMsgIndex !== -1) {
+            const outputText = result.success
+              ? `✅ Success: ${JSON.stringify(result.output, null, 2)}`
+              : `❌ Failed: ${result.error}`;
+
+            newHistory[loadMsgIndex] = {
+              ...newHistory[loadMsgIndex],
+              content: outputText,
+              isLoading: false,
+              metadata: {
+                executionResult: result
+              }
+            } as any;
+          }
+          return newHistory;
+        });
+
+        setIsLoading(false);
+        return result.success ? JSON.stringify(result.output) : null;
+
+      } catch (error) {
+        console.error("API execution failed", error);
+        setIsLoading(false);
+        return null;
+      }
+    }
+
+    // --- FALLBACK: OLD AI EXECUTION SIMULATION ---
     // Construct prompt for this step
     let stepPrompt = `Execute step: ${nodeLabel}.\n`;
     if (nodeData?.config) {
@@ -442,9 +502,9 @@ export default function ChatbotUI() {
               </p>
             </div>
             <div className="flex gap-3">
-              <Input
+              <Textarea
                 placeholder="Ask about your workspace to complete a task"
-                className="p-5 py-7"
+                className="resize-none max-h-[200px] min-h-[50px] py-5"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -535,9 +595,9 @@ export default function ChatbotUI() {
             {/* Input area */}
             <div className="border-t border-border p-4">
               <div className="flex gap-3 max-w-4xl mx-auto">
-                <Input
+                <Textarea
                   placeholder="Type your message..."
-                  className="p-5 py-7"
+                  className="resize-none py-5 min-h-[50px] max-h-[200px]"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
