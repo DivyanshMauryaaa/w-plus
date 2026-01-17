@@ -30,7 +30,8 @@ import {
     Hash,
     Sheet,
     Phone,
-    AlertTriangle
+    AlertTriangle,
+    Server
 } from 'lucide-react';
 
 export type ActionType =
@@ -198,6 +199,16 @@ export type ActionType =
     // Docker
     | 'docker_list_containers'
     | 'docker_container_action'
+    // AWS
+    | 'aws_s3_list_buckets'
+    | 'aws_lambda_list_functions'
+    | 'aws_ec2_list_instances'
+    // Google Cloud
+    | 'gcp_storage_list_buckets'
+    // Kubernetes
+    | 'k8s_list_pods'
+    | 'k8s_list_services'
+    | 'k8s_get_logs'
     // Generic
     | 'http_request'
     | 'script_run';
@@ -412,6 +423,19 @@ export const SUPPORTED_ACTIONS: ActionDefinition[] = [
     { id: 'vercel_list_projects', platform: 'Vercel', name: 'List Projects', icon: Globe, color: '#000000', description: 'List projects', fields: [] },
     { id: 'docker_list_containers', platform: 'Docker', name: 'List Containers', icon: Container, color: '#2496ED', description: 'List containers', fields: [] },
     { id: 'docker_container_action', platform: 'Docker', name: 'Container Action', icon: Terminal, color: '#2496ED', description: 'Container control', fields: [{ key: 'container_id', label: 'Container ID', type: 'text' }, { key: 'action', label: 'Action', type: 'select', options: ['start', 'stop', 'restart', 'kill'] }] },
+
+    // --- AWS ---
+    { id: 'aws_s3_list_buckets', platform: 'AWS Cloud', name: 'List S3 Buckets', icon: Cloud, color: '#FF9900', description: 'List all buckets', fields: [] },
+    { id: 'aws_lambda_list_functions', platform: 'AWS Cloud', name: 'List Functions', icon: Terminal, color: '#FF9900', description: 'List Lambdas', fields: [] },
+    { id: 'aws_ec2_list_instances', platform: 'AWS Cloud', name: 'List Instances', icon: Server, color: '#FF9900', description: 'List EC2 instances', fields: [{ key: 'region', label: 'Region', type: 'text', placeholder: 'us-east-1' }] },
+
+    // --- Google Cloud ---
+    { id: 'gcp_storage_list_buckets', platform: 'Google Cloud', name: 'List Buckets', icon: Cloud, color: '#4285F4', description: 'List GCS buckets', fields: [] },
+
+    // --- Kubernetes ---
+    { id: 'k8s_list_pods', platform: 'Kubernetes', name: 'List Pods', icon: Container, color: '#326CE5', description: 'List pods in namespace', fields: [{ key: 'namespace', label: 'Namespace', type: 'text', placeholder: 'default' }] },
+    { id: 'k8s_get_logs', platform: 'Kubernetes', name: 'Get Logs', icon: FileText, color: '#326CE5', description: 'Get pod logs', fields: [{ key: 'namespace', label: 'Namespace', type: 'text' }, { key: 'pod_name', label: 'Pod Name', type: 'text' }] },
+
     { id: 'http_request', platform: 'Generic', name: 'HTTP Request', icon: Globe, color: '#22c55e', description: 'HTTP request', fields: [{ key: 'url', label: 'URL', type: 'text' }, { key: 'method', label: 'Method', type: 'select', options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] }, { key: 'headers', label: 'Headers (JSON)', type: 'textarea' }, { key: 'body', label: 'Body (JSON)', type: 'textarea' }] },
     { id: 'script_run', platform: 'System', name: 'Run Script', icon: Terminal, color: '#f59e0b', description: 'Execute script', fields: [{ key: 'code', label: 'Code', type: 'textarea' }] }
 ];
@@ -446,6 +470,9 @@ export const PLATFORM_ICONS: Record<string, any> = {
     'Vercel': Globe,
     'Docker': Container,
     'Google Drive': Cloud,
+    'AWS Cloud': Cloud,
+    'Google Cloud': Cloud,
+    'Kubernetes': Container,
     'Trello': Trello,
     'Jira': Table, // Proxy
     'Asana': CheckSquare,

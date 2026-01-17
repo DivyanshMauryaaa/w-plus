@@ -405,7 +405,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Get the Gemini model
-        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash' })
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
         // Calculate tokens from previous chats
         const totalTokens = calculateTotalTokens(previous_chats)

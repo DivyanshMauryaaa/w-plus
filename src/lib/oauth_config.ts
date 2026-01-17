@@ -50,19 +50,43 @@ export const OAUTH_CONFIG = {
         scope: 'repo user',
     },
     youtube: {
-        // Uses Google Config but might need different scope if we want to separate it. 
-        // For simplicity, we can treat it as 'google' provider but with more scopes, 
-        // OR separate provider 'youtube' that uses same clientId.
-        // Let's use 'google' config for authUrl but extra scope.
-        // Actually, cleaner to separate 'youtube' provider logic if we want a distinct button?
-        // Or better: Just add Youtube scopes to the main Google config?
-        // The user asked for "Youtube", implying a separate button.
-        // If I use 'youtube' as provider key, I can reuse Google keys in ENV.
         clientId: process.env.GOOGLE_CLIENT_ID!,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
         tokenUrl: 'https://oauth2.googleapis.com/token',
         scope: 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly',
+    },
+    vercel: {
+        clientId: process.env.VERCEL_CLIENT_ID!,
+        clientSecret: process.env.VERCEL_CLIENT_SECRET!,
+        authUrl: 'https://vercel.com/oauth/authorize',
+        tokenUrl: 'https://api.vercel.com/v2/oauth/access_token',
+        scope: '',
+    },
+    trello: {
+        // Trello uses OAuth 1.0a usually but Atlassian supports OAuth 2.0 now.
+        // Assuming Atlassian OAuth 2.0 for Trello.
+        clientId: process.env.TRELLO_CLIENT_ID!,
+        clientSecret: process.env.TRELLO_CLIENT_SECRET!,
+        authUrl: 'https://auth.atlassian.com/authorize',
+        tokenUrl: 'https://auth.atlassian.com/oauth/token',
+        scope: 'read:trello write:trello',
+    },
+    microsoft: {
+        // For Excel
+        clientId: process.env.MICROSOFT_CLIENT_ID!,
+        clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+        authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+        tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+        scope: 'Files.ReadWrite offline_access User.Read',
+    },
+    meta: {
+        // For WhatsApp Business (Facebook Login)
+        clientId: process.env.META_CLIENT_ID!,
+        clientSecret: process.env.META_CLIENT_SECRET!,
+        authUrl: 'https://www.facebook.com/v19.0/dialog/oauth',
+        tokenUrl: 'https://graph.facebook.com/v19.0/oauth/access_token',
+        scope: 'whatsapp_business_management,whatsapp_business_messaging',
     }
 };
 

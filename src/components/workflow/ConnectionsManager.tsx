@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SUPPORTED_ACTIONS, ActionType } from '@/lib/integrations';
-import { Check, Plus, Settings } from 'lucide-react';
-import { CredentialsDialog, CREDENTIAL_KEYS } from './CredentialsDialog';
+import { Check, Plus, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { CredentialsDialog, CREDENTIAL_KEYS, CREDENTIAL_SCHEMAS } from './CredentialsDialog';
 
 interface ConnectionsManagerProps {
     connectedIds: ActionType[];
@@ -17,12 +17,25 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
     const [configuredPlatforms, setConfiguredPlatforms] = useState<Record<string, boolean>>({});
 
     // Platforms that support OAuth flow
-    const OAUTH_PROVIDERS = ['Google', 'Slack', 'Notion', 'X (Twitter)', 'Instagram', 'LinkedIn', 'PubMed', 'YouTube', 'GitHub'];
+    const OAUTH_PROVIDERS = [
+        'Google', 'Slack', 'Notion', 'X (Twitter)', 'Instagram', 'LinkedIn',
+        'PubMed', 'YouTube', 'GitHub', 'Vercel', 'Trello', 'Excel', 'WhatsApp'
+    ];
+
+    // State for accordion
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const checkConfig = async () => {
         const status: Record<string, boolean> = {};
 
         // 1. Check Local Storage (Manual Keys)
+        // We need to check not just if the key exists, but if it has content.
+        // For new schema-based ones, the key is e.g. CREDENTIALS_AWS_CLOUD
+        Object.keys(CREDENTIAL_SCHEMAS).forEach(p => {
+            const key = `CREDENTIALS_${p.toUpperCase().replace(/\s+/g, '_')}`;
+            if (localStorage.getItem(key)) status[p] = true;
+        });
+
         Object.keys(CREDENTIAL_KEYS).forEach(platform => {
             const key = CREDENTIAL_KEYS[platform];
             if (localStorage.getItem(key)) status[platform] = true;
@@ -34,9 +47,6 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
             if (res.ok) {
                 const data = await res.json();
                 if (data.connections) {
-                    // Map provider IDs (lowercase) to Display Names if needed
-                    // My DB stores 'google', 'slack', 'notion', 'x', 'instagram', 'linkedin', 'github', 'youtube'
-
                     const map = data.connections;
                     if (map['google']) {
                         status['Google Calendar'] = true;
@@ -47,12 +57,17 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
                     if (map['slack']) status['Slack'] = true;
                     if (map['notion']) status['Notion'] = true;
 
-                    // New Providers
                     if (map['x']) status['X (Twitter)'] = true;
                     if (map['instagram']) status['Instagram'] = true;
                     if (map['linkedin']) status['LinkedIn'] = true;
                     if (map['github']) status['GitHub'] = true;
                     if (map['youtube']) status['YouTube'] = true;
+
+                    // New OAuths
+                    if (map['vercel']) status['Vercel'] = true;
+                    if (map['trello']) status['Trello'] = true;
+                    if (map['microsoft']) status['Excel'] = true;
+                    if (map['meta']) status['WhatsApp'] = true;
                 }
             }
         } catch (e) {
@@ -95,8 +110,14 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
         else if (pid.includes('youtube')) pid = 'youtube';
         else if (pid.includes('slack')) pid = 'slack';
         else if (pid.includes('notion')) pid = 'notion';
-        // Add more mappings as needed
 
+        // New Mappings
+        else if (pid.includes('vercel')) pid = 'vercel';
+        else if (pid.includes('trello')) pid = 'trello';
+        else if (pid.includes('excel')) pid = 'microsoft';
+        else if (pid.includes('whatsapp') && OAUTH_PROVIDERS.includes('WhatsApp')) pid = 'meta';
+
+        // Trello, Vercel, Excel, WhatsApp are in OAUTH_PROVIDERS.
         const isOauth = OAUTH_PROVIDERS.some(p => platform.includes(p) || p.toLowerCase() === pid);
 
         if (isOauth && !platform.includes('Generic')) {
@@ -118,7 +139,7 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
 
         // If we are trying to ENABLE (not disable), check if configured
         if (!allConnected) {
-            const needsConfig = CREDENTIAL_KEYS.hasOwnProperty(platform) || OAUTH_PROVIDERS.some(p => platform.includes(p));
+            const needsConfig = CREDENTIAL_KEYS.hasOwnProperty(platform) || CREDENTIAL_SCHEMAS.hasOwnProperty(platform) || OAUTH_PROVIDERS.some(p => platform.includes(p));
             // Since configuredPlatforms is state, we can use it
             const isConfigured = !needsConfig || configuredPlatforms[platform];
 
@@ -137,92 +158,116 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
         });
     };
 
+    // Count generic connected platforms for badge
+    const connectedPlatformCount = platforms.filter(platform => {
+        const platformActions = SUPPORTED_ACTIONS.filter(a => a.platform === platform);
+        return platformActions.filter(a => connectedIds.includes(a.id)).length > 0;
+    }).length;
+
     return (
         <>
-            <Card className="w-full">
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Connected Platforms</CardTitle>
-                    <CardDescription>
-                        Connect apps to enable their actions for your AI agent.
-                    </CardDescription>
+            <Card className="w-full transition-all duration-300">
+                <CardHeader
+                    className="pb-3 cursor-pointer hover:bg-accent/50 transition-colors py-3"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <CardTitle className="text-sm font-medium">Connected Platforms</CardTitle>
+                            {!isExpanded && connectedPlatformCount > 0 && (
+                                <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full">
+                                    {connectedPlatformCount}
+                                </span>
+                            )}
+                        </div>
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
+                    {isExpanded && (
+                        <CardDescription className="text-xs pt-1">
+                            Connect apps to enable their actions for your AI agent.
+                        </CardDescription>
+                    )}
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2">
-                    {platforms.map((platform) => {
-                        const platformActions = SUPPORTED_ACTIONS.filter(a => a.platform === platform);
-                        const representative = platformActions[0];
-                        const Icon = representative.icon;
 
-                        const connectedCount = platformActions.filter(a => connectedIds.includes(a.id)).length;
-                        const isFullyConnected = connectedCount === platformActions.length;
-                        const isPartiallyConnected = connectedCount > 0 && !isFullyConnected;
+                {isExpanded && (
+                    <CardContent className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2 pt-0 pb-3">
+                        {platforms.map((platform) => {
+                            const platformActions = SUPPORTED_ACTIONS.filter(a => a.platform === platform);
+                            const representative = platformActions[0];
+                            const Icon = representative.icon;
 
-                        const needsConfig = CREDENTIAL_KEYS.hasOwnProperty(platform) || OAUTH_PROVIDERS.some(p => platform.includes(p));
-                        const isConfigured = !needsConfig || configuredPlatforms[platform];
+                            const connectedCount = platformActions.filter(a => connectedIds.includes(a.id)).length;
+                            const isFullyConnected = connectedCount === platformActions.length;
+                            const isPartiallyConnected = connectedCount > 0 && !isFullyConnected;
 
-                        return (
-                            <div
-                                key={platform}
-                                className={`flex items-center justify-between p-3 rounded-lg border transition-all ${isFullyConnected
-                                    ? 'bg-primary/5 border-primary/20'
-                                    : 'bg-card border-border hover:bg-accent/50'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
-                                        style={{
-                                            backgroundColor: isFullyConnected || isPartiallyConnected ? `${representative.color}20` : '#f4f4f5',
-                                            color: isFullyConnected || isPartiallyConnected ? representative.color : '#71717a'
-                                        }}
-                                    >
-                                        <Icon size={20} />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-semibold">{platform}</p>
-                                            {needsConfig && !isConfigured && isPartiallyConnected && (
-                                                <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200">
-                                                    Login Required
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span>{platformActions.length} Action{platformActions.length !== 1 ? 's' : ''}</span>
-                                            {needsConfig && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); isConfigured ? setSelectedPlatform(platform) : handleConnectClick(platform); }}
-                                                    className="hover:text-primary underline flex items-center gap-1"
-                                                >
-                                                    <Settings size={10} />
-                                                    {isConfigured ? 'Configure' : 'Connect'}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                            const needsConfig = CREDENTIAL_KEYS.hasOwnProperty(platform) || CREDENTIAL_SCHEMAS.hasOwnProperty(platform) || OAUTH_PROVIDERS.some(p => platform.includes(p));
+                            const isConfigured = !needsConfig || configuredPlatforms[platform];
 
-                                <Button
-                                    size="sm"
-                                    variant={isFullyConnected ? "secondary" : "outline"}
-                                    className={isFullyConnected ? "text-green-600 bg-green-50 hover:bg-green-100 h-8 px-3" : "h-8 px-3"}
-                                    onClick={() => handlePlatformToggle(platform)}
+                            return (
+                                <div
+                                    key={platform}
+                                    className={`flex items-center justify-between p-3 rounded-lg border transition-all ${isFullyConnected
+                                        ? 'bg-primary/5 border-primary/20'
+                                        : 'bg-card border-border hover:bg-accent/50'
+                                        }`}
                                 >
-                                    {isFullyConnected ? (
-                                        <div className="flex items-center gap-1.5">
-                                            <Check size={14} />
-                                            <span className="text-xs">Active</span>
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
+                                            style={{
+                                                backgroundColor: isFullyConnected || isPartiallyConnected ? `${representative.color}20` : '#f4f4f5',
+                                                color: isFullyConnected || isPartiallyConnected ? representative.color : '#71717a'
+                                            }}
+                                        >
+                                            <Icon size={20} />
                                         </div>
-                                    ) : (
-                                        <div className="flex items-center gap-1.5">
-                                            <Plus size={14} />
-                                            <span className="text-xs">Enable</span>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-sm font-semibold">{platform}</p>
+                                                {needsConfig && !isConfigured && isPartiallyConnected && (
+                                                    <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200">
+                                                        Login Required
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                <span>{platformActions.length} Action{platformActions.length !== 1 ? 's' : ''}</span>
+                                                {needsConfig && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); isConfigured ? setSelectedPlatform(platform) : handleConnectClick(platform); }}
+                                                        className="hover:text-primary underline flex items-center gap-1"
+                                                    >
+                                                        <Settings size={10} />
+                                                        {isConfigured ? 'Configure' : 'Connect'}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                </Button>
-                            </div>
-                        );
-                    })}
-                </CardContent>
+                                    </div>
+
+                                    <Button
+                                        size="sm"
+                                        variant={isFullyConnected ? "secondary" : "outline"}
+                                        className={isFullyConnected ? "text-green-600 bg-green-50 hover:bg-green-100 h-8 px-3" : "h-8 px-3"}
+                                        onClick={() => handlePlatformToggle(platform)}
+                                    >
+                                        {isFullyConnected ? (
+                                            <div className="flex items-center gap-1.5">
+                                                <Check size={14} />
+                                                <span className="text-xs">Active</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5">
+                                                <Plus size={14} />
+                                                <span className="text-xs">Enable</span>
+                                            </div>
+                                        )}
+                                    </Button>
+                                </div>
+                            );
+                        })}
+                    </CardContent>
+                )}
             </Card>
 
             {selectedPlatform && (
