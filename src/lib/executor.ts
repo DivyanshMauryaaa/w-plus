@@ -108,9 +108,6 @@ export async function executeAction(
 
     try {
         switch (actionId) {
-            case 'http_request':
-                return await executeHttpRequest(config);
-
             // --- Slack ---
             case 'slack_send_message':
                 return await executeSlackSendMessage(config, credentials, userId);
