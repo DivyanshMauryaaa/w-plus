@@ -30,6 +30,10 @@ export const useConnectedPlatforms = () => {
                         status['Gmail'] = true;
                         status['Google Drive'] = true;
                         status['Google'] = true;
+                        status['Google Docs'] = true;
+                        status['Google Sheets'] = true;
+                        status['Google Chat'] = true;
+                        status['Google Cloud'] = true;
                     }
                     if (map['slack']) status['Slack'] = true;
                     if (map['notion']) status['Notion'] = true;
@@ -42,9 +46,10 @@ export const useConnectedPlatforms = () => {
 
                     // New OAuths
                     if (map['vercel']) status['Vercel'] = true;
-                    if (map['trello']) status['Trello'] = true;
+                    if (map['jira']) status['Jira'] = true; // Was Trello
                     if (map['microsoft']) status['Excel'] = true;
                     if (map['meta']) status['WhatsApp'] = true;
+                    if (map['generic_action']) status['Generic'] = true;
                 }
             }
         } catch (e) {

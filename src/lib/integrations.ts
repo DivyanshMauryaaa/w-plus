@@ -128,10 +128,10 @@ export type ActionType =
     | 'calendar_delete_event'
     | 'calendar_get_event'
 
-    // Trello
-    | 'trello_create_card'
-    | 'trello_move_card'
-    | 'trello_delete_card'
+    // Jira
+    | 'jira_create_issue'
+    | 'jira_get_issue'
+    | 'jira_search_issues'
     // Excel
     | 'excel_add_row'
     // Twilio
@@ -239,8 +239,6 @@ export const SUPPORTED_ACTIONS: ActionDefinition[] = [
     { id: 'youtube_upload_video', platform: 'YouTube', name: 'Upload Video', icon: Youtube, color: '#FF0000', description: 'Upload a video file', fields: [{ key: 'file_url', label: 'Video URL', type: 'text' }, { key: 'title', label: 'Title', type: 'text' }, { key: 'description', label: 'Description', type: 'textarea' }] },
     { id: 'youtube_get_metrics', platform: 'YouTube', name: 'Get Metrics', icon: Youtube, color: '#FF0000', description: 'Get channel statistics', fields: [{ key: 'video_id', label: 'Video ID (Optional)', type: 'text' }, { key: 'metric', label: 'Metric', type: 'select', options: ['views', 'subscribers', 'likes'] }] },
 
-
-
     // --- WhatsApp ---
     { id: 'whatsapp_send_message', platform: 'WhatsApp', name: 'Send Message', icon: MessageCircle, color: '#25D366', description: 'Send a WhatsApp message', fields: [{ key: 'to', label: 'Phone Number', type: 'text' }, { key: 'message', label: 'Message', type: 'textarea' }] },
     { id: 'whatsapp_send_image', platform: 'WhatsApp', name: 'Send Image', icon: MessageCircle, color: '#25D366', description: 'Send image', fields: [{ key: 'to', label: 'Phone', type: 'text' }, { key: 'image_url', label: 'Image URL', type: 'text' }, { key: 'caption', label: 'Caption', type: 'text' }] },
@@ -313,10 +311,10 @@ export const SUPPORTED_ACTIONS: ActionDefinition[] = [
 
 
 
-    // --- Trello ---
-    { id: 'trello_create_card', platform: 'Trello', name: 'Create Card', icon: Trello, color: '#0079BF', description: 'Create card', fields: [{ key: 'list_id', label: 'List ID', type: 'text' }, { key: 'name', label: 'Name', type: 'text' }, { key: 'desc', label: 'Description', type: 'textarea' }] },
-    { id: 'trello_move_card', platform: 'Trello', name: 'Move Card', icon: Trello, color: '#0079BF', description: 'Move card', fields: [{ key: 'card_id', label: 'Card ID', type: 'text' }, { key: 'list_id', label: 'Target List ID', type: 'text' }] },
-    { id: 'trello_delete_card', platform: 'Trello', name: 'Delete Card', icon: Trello, color: '#0079BF', description: 'Delete card', fields: [{ key: 'card_id', label: 'Card ID', type: 'text' }] },
+    // --- Jira ---
+    { id: 'jira_create_issue', platform: 'Jira', name: 'Create Issue', icon: Trello, color: '#0052CC', description: 'Create new issue', fields: [{ key: 'project_key', label: 'Project Key', type: 'text' }, { key: 'summary', label: 'Summary', type: 'text' }, { key: 'description', label: 'Description', type: 'textarea' }, { key: 'issuetype', label: 'Issue Type', type: 'text', placeholder: 'Task' }] },
+    { id: 'jira_search_issues', platform: 'Jira', name: 'Search Issues', icon: Search, color: '#0052CC', description: 'Search via JQL', fields: [{ key: 'jql', label: 'JQL', type: 'textarea' }] },
+    { id: 'jira_get_issue', platform: 'Jira', name: 'Get Issue', icon: FileText, color: '#0052CC', description: 'Get issue details', fields: [{ key: 'issue_key', label: 'Issue Key', type: 'text' }] },
 
 
 
@@ -384,5 +382,4 @@ export const PLATFORM_ICONS: Record<string, any> = {
     'YouTube': Youtube,
     'WhatsApp': MessageCircle, // Proxy
     'Google Chat': MessageSquare, // Proxy
-
 };

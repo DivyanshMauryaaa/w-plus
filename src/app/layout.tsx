@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Sans } from "next/font/google";
+import { Geist, Geist_Mono, PT_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ClerkProvider, UserButton } from "@clerk/nextjs";
 
-const notoSans = Noto_Sans({ variable: '--font-sans' });
+const ptSans = PT_Sans({
+  variable: '--font-pt-sans',
+  subsets: ["latin"],
+  weight: ["400", "700"]
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,9 +34,9 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={notoSans.variable} suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${ptSans.variable} ${geistSans.variable} ${geistMono.variable} antialiased font-serif`}
         >
           <ThemeProvider
             defaultTheme="system"

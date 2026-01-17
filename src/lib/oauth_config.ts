@@ -5,7 +5,7 @@ export const OAUTH_CONFIG = {
         clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
         tokenUrl: 'https://oauth2.googleapis.com/token',
-        scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.send',
+        scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
     },
     slack: {
         clientId: process.env.SLACK_CLIENT_ID!,
@@ -63,14 +63,13 @@ export const OAUTH_CONFIG = {
         tokenUrl: 'https://api.vercel.com/v2/oauth/access_token',
         scope: '',
     },
-    trello: {
-        // Trello uses OAuth 1.0a usually but Atlassian supports OAuth 2.0 now.
-        // Assuming Atlassian OAuth 2.0 for Trello.
+    jira: {
+        // Renamed from Trello, using same Atlassian creds
         clientId: process.env.TRELLO_CLIENT_ID!,
         clientSecret: process.env.TRELLO_CLIENT_SECRET!,
         authUrl: 'https://auth.atlassian.com/authorize',
         tokenUrl: 'https://auth.atlassian.com/oauth/token',
-        scope: 'read:trello write:trello',
+        scope: 'read:jira-work write:jira-work offline_access',
     },
     microsoft: {
         // For Excel

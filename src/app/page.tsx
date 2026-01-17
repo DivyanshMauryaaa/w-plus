@@ -31,6 +31,24 @@ export default function ChatbotUI() {
     'calendar_create_event', 'calendar_get_events', 'gmail_send_email', 'gmail_search', 'slack_send_message' // Defaults
   ]);
 
+  // Load persistence
+  useEffect(() => {
+    const saved = localStorage.getItem('ENABLED_ACTIONS_PERSIST');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setEnabledActions(parsed);
+        }
+      } catch (e) { console.error("Failed to parse saved actions", e); }
+    }
+  }, []);
+
+  // Save persistence
+  useEffect(() => {
+    localStorage.setItem('ENABLED_ACTIONS_PERSIST', JSON.stringify(enabledActions));
+  }, [enabledActions]);
+
   const { configuredPlatforms } = useConnectedPlatforms();
 
   const toggleAction = (id: ActionType) => {
@@ -506,7 +524,7 @@ export default function ChatbotUI() {
           <div className="m-auto flex w-[60%] m-auto flex-col justify-center">
             <div className="mb-8">
               <p className="text-2xl font-bold text-center">
-                Your business, understood. Your work, executed.
+                What's next on our list? {user?.firstName}
               </p>
             </div>
             <div className="flex gap-3">
@@ -517,6 +535,7 @@ export default function ChatbotUI() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 disabled={isLoading}
+                autoFocus
               />
               <Button
                 className="py-7 px-5 cursor-pointer"
@@ -533,7 +552,7 @@ export default function ChatbotUI() {
             <div>
               <p className="text-xs text-muted-foreground mt-3 text-center">
                 use <kbd className="px-1 py-0.5 bg-muted rounded">@file</kbd> to
-                mention a file or a directory.
+                mention a file or a directory from your workspace.
               </p>
             </div>
           </div>
@@ -609,6 +628,7 @@ export default function ChatbotUI() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
+                  autoFocus
                 />
                 <Button
                   className="py-7 px-5 cursor-pointer"
@@ -624,7 +644,7 @@ export default function ChatbotUI() {
               </div>
               <p className="text-xs text-muted-foreground mt-3 text-center">
                 use <kbd className="px-1 py-0.5 bg-muted rounded">@file</kbd> to
-                mention a file or a directory.
+                mention a file or a directory from your workspace.
               </p>
             </div>
           </div>

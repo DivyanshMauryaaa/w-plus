@@ -21,7 +21,7 @@ export const ConnectionsManager = ({ connectedIds, onToggle, showOnlyConnected =
     // Platforms that support OAuth flow
     const OAUTH_PROVIDERS = [
         'Google', 'Slack', 'Notion', 'X (Twitter)', 'Instagram', 'LinkedIn',
-        'PubMed', 'YouTube', 'GitHub', 'Vercel', 'Trello', 'Excel', 'WhatsApp'
+        'PubMed', 'YouTube', 'GitHub', 'Vercel', 'Jira', 'Excel', 'WhatsApp'
     ];
 
     // State for accordion
@@ -52,11 +52,11 @@ export const ConnectionsManager = ({ connectedIds, onToggle, showOnlyConnected =
 
         // New Mappings
         else if (pid.includes('vercel')) pid = 'vercel';
-        else if (pid.includes('trello')) pid = 'trello';
+        else if (pid.includes('jira')) pid = 'jira';
         else if (pid.includes('excel')) pid = 'microsoft';
         else if (pid.includes('whatsapp') && OAUTH_PROVIDERS.includes('WhatsApp')) pid = 'meta';
 
-        // Trello, Vercel, Excel, WhatsApp are in OAUTH_PROVIDERS.
+        // Jira, Vercel, Excel, WhatsApp are in OAUTH_PROVIDERS.
         const isOauth = OAUTH_PROVIDERS.some(p => platform.includes(p) || p.toLowerCase() === pid);
 
         if (isOauth && !platform.includes('Generic')) {

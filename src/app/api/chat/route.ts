@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import { SUPPORTED_ACTIONS } from '@/lib/integrations'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -168,6 +169,7 @@ Analyze the request.
 Create a "node-based" workflow graph.
 Include a "config" object for EVERY node with editable parameters (prompts, targets).
 
+
 REQUIRED JSON FORMAT (must be in a \`\`\`json code block):
 \`\`\`json
 {
@@ -194,14 +196,13 @@ REQUIRED JSON FORMAT (must be in a \`\`\`json code block):
 \`\`\`
 
 GUIDELINES:
-1. **Title**: Generate a creative, short, and descriptive title for the workflow (e.g. "Morning Briefing", "Lead Gen Loop").
+1. **Title**: Generate a creative, short, and descriptive title for the workflow.
 2. **Actions**: Check the [User's Enabled Actions] list below. Only use IDs from that list.
-3. **Config**: For every node, add a "config" object matching the action's fields.
-   - For generic nodes: Add "prompt".
-   - For specific actions: Use the fields defined for that action (e.g. 'channel', 'text' for slack).
-   - Use default placeholders if specific values aren't provided.
-4. **Layout**: Horizontal flow (x: 0 -> 300 -> 600).
-5. **Status**: "pending" by default.`
+3. **Config**: For every node, populate the "config" object matching the action's required fields (provided in the schema).
+   - For generic nodes: Add "prompt" with instructions.
+   - For specific actions: Use the exact keys from the schema provided below.
+   - **CRITICAL**: Prefill these fields with relevant data from the user's request. Do not leave them blank.
+4. **Layout**: Horizontal flow (x: 0 -> 300 -> 600).`
 
 // Extract workflow from AI response if present
 function extractWorkflow(text: string): { workflow: any | null; cleanedText: string } {
@@ -276,6 +277,17 @@ async function DoOperation(
     if (mode === 'workflow') {
         const available = connectedIntegrations.length > 0 ? connectedIntegrations.join(', ') : "None";
         fullPrompt += `[User's Enabled Actions]: ${available}\n(Only use these actionIds, otherwise use generic)\n\n`;
+
+        // Add Detailed Schema for Enabled Actions
+        fullPrompt += `[Action Schemas (Field Definitions)]:\n`;
+        const schemas = connectedIntegrations.map(id => {
+            const action = SUPPORTED_ACTIONS.find(a => a.id === id);
+            if (!action) return null;
+            const fields = action.fields.map(f => `${f.key} (${f.type}${f.options ? ': ' + f.options.join('|') : ''})`).join(', ');
+            return `- ${id}: { ${fields} }`;
+        }).filter(Boolean).join('\n');
+        
+        fullPrompt += schemas + "\n\n";
     }
 
     if (conversationContext) {

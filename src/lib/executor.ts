@@ -33,7 +33,9 @@ async function getToken(key: string, credentials?: Record<string, string>, userI
         let provider: string | null = null;
         if (key === 'GOOGLE_ACCESS_TOKEN') provider = 'google';
         if (key === 'SLACK_BOT_TOKEN') provider = 'slack';
+        if (key === 'SLACK_BOT_TOKEN') provider = 'slack';
         if (key === 'NOTION_API_KEY') provider = 'notion';
+        if (key === 'JIRA_ACCESS_TOKEN') provider = 'jira';
 
         if (provider) {
             const { data, error } = await supabase
@@ -126,6 +128,34 @@ export async function executeAction(
             case 'calendar_get_events':
                 return await executeCalendarGetEvents(config, credentials, userId);
 
+            // --- Google Docs ---
+            case 'google_docs_create':
+                return await executeGoogleDocsCreate(config, credentials, userId);
+            case 'google_docs_append':
+                return await executeGoogleDocsAppend(config, credentials, userId);
+            case 'google_docs_get':
+                return await executeGoogleDocsGet(config, credentials, userId);
+
+            // --- Google Sheets ---
+            case 'google_sheets_create':
+                return await executeGoogleSheetsCreate(config, credentials, userId);
+            case 'google_sheets_append':
+                return await executeGoogleSheetsAppend(config, credentials, userId);
+            case 'google_sheets_read':
+                return await executeGoogleSheetsRead(config, credentials, userId);
+
+            // --- Google Drive ---
+            case 'google_drive_list_files':
+                return await executeGoogleDriveListFiles(config, credentials, userId);
+
+            // --- Jira ---
+            case 'jira_create_issue':
+                return await executeJiraCreateIssue(config, credentials, userId);
+            case 'jira_search_issues':
+                return await executeJiraSearchIssues(config, credentials, userId);
+            case 'jira_get_issue':
+                return await executeJiraGetIssue(config, credentials, userId);
+
             // --- Generic ---
             default:
                 return {
@@ -141,6 +171,104 @@ export async function executeAction(
             logs: [`Execution failed: ${error.message}`]
         };
     }
+}
+
+// ============================================================================
+// JIRA (Atlassian)
+// ============================================================================
+async function getAtlassianCloudId(token: string): Promise<string> {
+    const res = await fetch('https://api.atlassian.com/oauth/token/accessible-resources', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const sites = await res.json();
+    if (!res.ok) throw new Error(`Failed to get Atlassian resources: ${JSON.stringify(sites)}`);
+    if (!sites || sites.length === 0) throw new Error("No accessible Atlassian resources found for this user.");
+    return sites[0].id;
+}
+
+async function executeJiraCreateIssue(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('JIRA_ACCESS_TOKEN', credentials, userId);
+    const cloudId = await getAtlassianCloudId(token);
+    const { project_key, summary, description, issuetype = 'Task' } = config;
+
+    if (!project_key || !summary) throw new Error("Jira 'project_key' and 'summary' are required.");
+
+    const bodyData = {
+        fields: {
+            project: { key: project_key },
+            summary: summary,
+            description: {
+                type: "doc",
+                version: 1,
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [
+                            {
+                                type: "text",
+                                text: description || ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            issuetype: { name: issuetype }
+        }
+    };
+
+    const response = await fetch(`https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bodyData)
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Jira Create Error: ${JSON.stringify(data)}`);
+
+    return { success: true, output: data, logs: [`Created Jira issue ${data.key}`] };
+}
+
+async function executeJiraSearchIssues(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('JIRA_ACCESS_TOKEN', credentials, userId);
+    const cloudId = await getAtlassianCloudId(token);
+    const { jql } = config;
+
+    const query = jql ? `?jql=${encodeURIComponent(jql)}` : '';
+    const response = await fetch(`https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search${query}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+        }
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Jira Search Error: ${JSON.stringify(data)}`);
+
+    return { success: true, output: data.issues, logs: [`Found ${data.issues?.length || 0} Jira issues`] };
+}
+
+async function executeJiraGetIssue(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('JIRA_ACCESS_TOKEN', credentials, userId);
+    const cloudId = await getAtlassianCloudId(token);
+    const { issue_key } = config;
+    if (!issue_key) throw new Error("Jira 'issue_key' is required.");
+
+    const response = await fetch(`https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issue_key}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+        }
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Jira Get Error: ${JSON.stringify(data)}`);
+
+    return { success: true, output: data, logs: [`Retrieved Jira issue ${issue_key}`] };
 }
 
 // ============================================================================
@@ -294,4 +422,160 @@ async function executeGmailSendEmail(config: any, credentials?: Record<string, s
     if (!response.ok) throw new Error(`Gmail Error: ${data.error?.message}`);
 
     return { success: true, output: data, logs: [`Email sent to ${to}`] };
+}
+
+// ============================================================================
+// GOOGLE DOCS
+// ============================================================================
+async function executeGoogleDocsCreate(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('GOOGLE_ACCESS_TOKEN', credentials, userId);
+    const { title, initial_content } = config;
+    if (!title) throw new Error("Docs 'title' is required.");
+
+    // 1. Create Document
+    const createRes = await fetch('https://docs.googleapis.com/v1/documents', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+    });
+    const doc = await createRes.json();
+    if (!createRes.ok) throw new Error(`Google Docs Create Error: ${doc.error?.message}`);
+
+    // 2. Insert Content if provided
+    if (initial_content) {
+        const updateRes = await fetch(`https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                requests: [{
+                    insertText: {
+                        location: { index: 1 },
+                        text: initial_content
+                    }
+                }]
+            })
+        });
+        if (!updateRes.ok) {
+            const err = await updateRes.json();
+            return { success: true, output: doc, logs: [`Document created but failed to insert content: ${err.error?.message}`] };
+        }
+    }
+
+    return { success: true, output: doc, logs: [`Created Google Doc: ${title}`] };
+}
+
+async function executeGoogleDocsAppend(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('GOOGLE_ACCESS_TOKEN', credentials, userId);
+    const { document_id, text } = config;
+    if (!document_id || !text) throw new Error("Docs 'document_id' and 'text' required.");
+
+    const response = await fetch(`https://docs.googleapis.com/v1/documents/${document_id}:batchUpdate`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            requests: [{
+                insertText: {
+                    endOfSegmentLocation: { segmentId: "" }, // End of body
+                    text: text
+                }
+            }]
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Google Docs Append Error: ${data.error?.message}`);
+
+    return { success: true, output: data, logs: [`Appended text to Doc ${document_id}`] };
+}
+
+async function executeGoogleDocsGet(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('GOOGLE_ACCESS_TOKEN', credentials, userId);
+    const { document_id } = config;
+    if (!document_id) throw new Error("Docs 'document_id' required.");
+
+    const response = await fetch(`https://docs.googleapis.com/v1/documents/${document_id}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Google Docs Get Error: ${data.error?.message}`);
+
+    return { success: true, output: data, logs: [`Retrieved Doc ${document_id}`] };
+}
+
+// ============================================================================
+// GOOGLE SHEETS
+// ============================================================================
+async function executeGoogleSheetsCreate(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('GOOGLE_ACCESS_TOKEN', credentials, userId);
+    const { title } = config;
+    if (!title) throw new Error("Sheets 'title' required.");
+
+    const response = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ properties: { title } })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Google Sheets Create Error: ${data.error?.message}`);
+
+    return { success: true, output: data, logs: [`Created Spreadsheet: ${title}`] };
+}
+
+async function executeGoogleSheetsAppend(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('GOOGLE_ACCESS_TOKEN', credentials, userId);
+    const { spreadsheet_id, values } = config; // values should be comma separated string or array
+    if (!spreadsheet_id || !values) throw new Error("Sheets 'spreadsheet_id' and 'values' required.");
+
+    const rowValues = Array.isArray(values) ? values : (typeof values === 'string' ? values.split(',') : [values]);
+
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheet_id}/values/A1:append?valueInputOption=USER_ENTERED`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            values: [rowValues]
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Google Sheets Append Error: ${data.error?.message}`);
+
+    return { success: true, output: data, logs: [`Appended row to Sheet ${spreadsheet_id}`] };
+}
+
+async function executeGoogleSheetsRead(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('GOOGLE_ACCESS_TOKEN', credentials, userId);
+    const { spreadsheet_id, range = 'A1:Z100' } = config;
+    if (!spreadsheet_id) throw new Error("Sheets 'spreadsheet_id' required.");
+
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheet_id}/values/${range}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Google Sheets Read Error: ${data.error?.message}`);
+
+    return { success: true, output: data, logs: [`Read range ${range} from Sheet ${spreadsheet_id}`] };
+}
+
+// ============================================================================
+// GOOGLE DRIVE
+// ============================================================================
+async function executeGoogleDriveListFiles(config: any, credentials?: Record<string, string>, userId?: string): Promise<ExecutionResult> {
+    const token = await getToken('GOOGLE_ACCESS_TOKEN', credentials, userId);
+    const { query, limit = 10 } = config;
+    const qParam = query ? `&q=${encodeURIComponent(query)}` : '';
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?pageSize=${limit}${qParam}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Google Drive List Error: ${data.error?.message}`);
+
+    return { success: true, output: data, logs: [`Listed ${data.files?.length || 0} files`] };
 }
