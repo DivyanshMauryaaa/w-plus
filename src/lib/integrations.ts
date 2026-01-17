@@ -65,8 +65,7 @@ export type ActionType =
     // YouTube
     | 'youtube_upload_video'
     | 'youtube_get_metrics'
-    // Reddit
-    | 'reddit_create_post'
+
     // WhatsApp
     | 'whatsapp_send_message'
     | 'whatsapp_send_image'
@@ -128,37 +127,18 @@ export type ActionType =
     | 'calendar_update_event'
     | 'calendar_delete_event'
     | 'calendar_get_event'
-    // Airtable
-    | 'airtable_create_record'
-    | 'airtable_list_records'
-    | 'airtable_get_base'
-    | 'airtable_update_record'
-    | 'airtable_delete_record'
+
     // Trello
     | 'trello_create_card'
     | 'trello_move_card'
     | 'trello_delete_card'
-    // Jira
-    | 'jira_create_issue'
-    | 'jira_transition_issue'
-    | 'jira_add_comment'
-    // Asana
-    | 'asana_create_task'
-    | 'asana_complete_task'
-    // Todoist
-    | 'todoist_create_task'
-    | 'todoist_list_tasks'
     // Excel
     | 'excel_add_row'
-    // Zoom
-    | 'zoom_create_meeting'
-    | 'zoom_delete_meeting'
     // Twilio
     | 'twilio_send_sms'
     | 'twilio_make_call'
-    // PagerDuty
-    | 'pagerduty_trigger_incident'
-    | 'pagerduty_resolve_incident'
+
+
     // GitHub
     | 'github_create_issue'
     | 'github_create_pr'
@@ -175,17 +155,7 @@ export type ActionType =
     | 'supabase_select'
     | 'supabase_update'
     | 'supabase_delete'
-    // MySQL
-    | 'mysql_query'
-    // Redis
-    | 'redis_set'
-    | 'redis_get'
-    | 'redis_delete'
-    // Amazon S3
-    | 's3_upload_file'
-    | 's3_list_objects'
-    | 's3_download_file'
-    | 's3_delete_object'
+
     // Stripe
     | 'stripe_get_payments'
     | 'stripe_create_invoice'
@@ -209,8 +179,11 @@ export type ActionType =
     | 'k8s_list_pods'
     | 'k8s_list_services'
     | 'k8s_get_logs'
-    // Generic
-    | 'http_request'
+    // Kubernetes
+    | 'k8s_list_pods'
+    | 'k8s_list_services'
+    | 'k8s_get_logs'
+    // System
     | 'script_run';
 
 export interface ActionField {
@@ -266,8 +239,7 @@ export const SUPPORTED_ACTIONS: ActionDefinition[] = [
     { id: 'youtube_upload_video', platform: 'YouTube', name: 'Upload Video', icon: Youtube, color: '#FF0000', description: 'Upload a video file', fields: [{ key: 'file_url', label: 'Video URL', type: 'text' }, { key: 'title', label: 'Title', type: 'text' }, { key: 'description', label: 'Description', type: 'textarea' }] },
     { id: 'youtube_get_metrics', platform: 'YouTube', name: 'Get Metrics', icon: Youtube, color: '#FF0000', description: 'Get channel statistics', fields: [{ key: 'video_id', label: 'Video ID (Optional)', type: 'text' }, { key: 'metric', label: 'Metric', type: 'select', options: ['views', 'subscribers', 'likes'] }] },
 
-    // --- Reddit ---
-    { id: 'reddit_create_post', platform: 'Reddit', name: 'Create Post', icon: MessageCircle, color: '#FF4500', description: 'Submit a new post', fields: [{ key: 'subreddit', label: 'Subreddit', type: 'text', placeholder: 'r/reactjs' }, { key: 'title', label: 'Title', type: 'text' }, { key: 'text', label: 'Body', type: 'textarea' }] },
+
 
     // --- WhatsApp ---
     { id: 'whatsapp_send_message', platform: 'WhatsApp', name: 'Send Message', icon: MessageCircle, color: '#25D366', description: 'Send a WhatsApp message', fields: [{ key: 'to', label: 'Phone Number', type: 'text' }, { key: 'message', label: 'Message', type: 'textarea' }] },
@@ -339,45 +311,14 @@ export const SUPPORTED_ACTIONS: ActionDefinition[] = [
     { id: 'calendar_delete_event', platform: 'Google Calendar', name: 'Delete Event', icon: Calendar, color: '#4285F4', description: 'Delete event', fields: [{ key: 'event_id', label: 'Event ID', type: 'text' }] },
     { id: 'calendar_get_event', platform: 'Google Calendar', name: 'Get Event', icon: Calendar, color: '#4285F4', description: 'Get event', fields: [{ key: 'event_id', label: 'Event ID', type: 'text' }] },
 
-    // --- Airtable ---
-    { id: 'airtable_create_record', platform: 'Airtable', name: 'Create Record', icon: Table, color: '#F82B60', description: 'Add record to base', fields: [{ key: 'base_id', label: 'Base ID', type: 'text' }, { key: 'table', label: 'Table Name', type: 'text' }, { key: 'fields', label: 'Fields (JSON)', type: 'textarea' }] },
-    { id: 'airtable_list_records', platform: 'Airtable', name: 'List Records', icon: Table, color: '#F82B60', description: 'List/filter records', fields: [{ key: 'base_id', label: 'Base ID', type: 'text' }, { key: 'table', label: 'Table Name', type: 'text' }] },
-    { id: 'airtable_get_base', platform: 'Airtable', name: 'Get Base', icon: Table, color: '#F82B60', description: 'Get base schema', fields: [{ key: 'base_id', label: 'Base ID', type: 'text' }] },
-    { id: 'airtable_update_record', platform: 'Airtable', name: 'Update Record', icon: Table, color: '#F82B60', description: 'Update record', fields: [{ key: 'base_id', label: 'Base ID', type: 'text' }, { key: 'table', label: 'Table', type: 'text' }, { key: 'record_id', label: 'Record ID', type: 'text' }, { key: 'fields', label: 'Fields (JSON)', type: 'textarea' }] },
-    { id: 'airtable_delete_record', platform: 'Airtable', name: 'Delete Record', icon: Table, color: '#F82B60', description: 'Delete record', fields: [{ key: 'base_id', label: 'Base ID', type: 'text' }, { key: 'table', label: 'Table', type: 'text' }, { key: 'record_id', label: 'Record ID', type: 'text' }] },
+
 
     // --- Trello ---
     { id: 'trello_create_card', platform: 'Trello', name: 'Create Card', icon: Trello, color: '#0079BF', description: 'Create card', fields: [{ key: 'list_id', label: 'List ID', type: 'text' }, { key: 'name', label: 'Name', type: 'text' }, { key: 'desc', label: 'Description', type: 'textarea' }] },
     { id: 'trello_move_card', platform: 'Trello', name: 'Move Card', icon: Trello, color: '#0079BF', description: 'Move card', fields: [{ key: 'card_id', label: 'Card ID', type: 'text' }, { key: 'list_id', label: 'Target List ID', type: 'text' }] },
     { id: 'trello_delete_card', platform: 'Trello', name: 'Delete Card', icon: Trello, color: '#0079BF', description: 'Delete card', fields: [{ key: 'card_id', label: 'Card ID', type: 'text' }] },
 
-    // --- Jira ---
-    { id: 'jira_create_issue', platform: 'Jira', name: 'Create Issue', icon: Table, color: '#0052CC', description: 'Create issue', fields: [{ key: 'project_key', label: 'Project Key', type: 'text' }, { key: 'summary', label: 'Summary', type: 'text' }, { key: 'issue_type', label: 'Issue Type', type: 'text' }] },
-    { id: 'jira_transition_issue', platform: 'Jira', name: 'Transition Issue', icon: Table, color: '#0052CC', description: 'Change status', fields: [{ key: 'issue_id', label: 'Issue ID', type: 'text' }, { key: 'transition_id', label: 'Transition ID', type: 'text' }] },
-    { id: 'jira_add_comment', platform: 'Jira', name: 'Add Comment', icon: Table, color: '#0052CC', description: 'Add comment', fields: [{ key: 'issue_id', label: 'Issue ID', type: 'text' }, { key: 'comment', label: 'Comment', type: 'textarea' }] },
 
-    // --- Asana ---
-    { id: 'asana_create_task', platform: 'Asana', name: 'Create Task', icon: CheckSquare, color: '#F06A6A', description: 'Create task', fields: [{ key: 'project_id', label: 'Project ID', type: 'text' }, { key: 'name', label: 'Name', type: 'text' }] },
-    { id: 'asana_complete_task', platform: 'Asana', name: 'Complete Task', icon: CheckSquare, color: '#F06A6A', description: 'Complete task', fields: [{ key: 'task_id', label: 'Task ID', type: 'text' }] },
-
-    // --- Todoist ---
-    { id: 'todoist_create_task', platform: 'Todoist', name: 'Create Task', icon: CheckSquare, color: '#E44332', description: 'Add a new task', fields: [{ key: 'content', label: 'Task Name', type: 'text' }, { key: 'project_id', label: 'Project ID', type: 'text' }] },
-    { id: 'todoist_list_tasks', platform: 'Todoist', name: 'List Tasks', icon: CheckSquare, color: '#E44332', description: 'Get active tasks', fields: [{ key: 'filter', label: 'Filter (e.g. "today")', type: 'text' }] },
-
-    // --- Excel ---
-    { id: 'excel_add_row', platform: 'Excel', name: 'Add Row', icon: Table, color: '#217346', description: 'Add row to spreadsheet', fields: [{ key: 'file_id', label: 'File ID', type: 'text' }, { key: 'worksheet', label: 'Worksheet', type: 'text' }, { key: 'values', label: 'Values (JSON)', type: 'textarea' }] },
-
-    // --- Zoom ---
-    { id: 'zoom_create_meeting', platform: 'Zoom', name: 'Create Meeting', icon: Video, color: '#2D8CFF', description: 'Create meeting', fields: [{ key: 'topic', label: 'Topic', type: 'text' }, { key: 'start_time', label: 'Start Time', type: 'text' }] },
-    { id: 'zoom_delete_meeting', platform: 'Zoom', name: 'Delete Meeting', icon: Video, color: '#2D8CFF', description: 'Delete meeting', fields: [{ key: 'meeting_id', label: 'Meeting ID', type: 'text' }] },
-
-    // --- Twilio ---
-    { id: 'twilio_send_sms', platform: 'Twilio', name: 'Send SMS', icon: MessageCircle, color: '#F22F46', description: 'Send SMS', fields: [{ key: 'to', label: 'To', type: 'text' }, { key: 'message', label: 'Message', type: 'textarea' }] },
-    { id: 'twilio_make_call', platform: 'Twilio', name: 'Make Call', icon: Phone, color: '#F22F46', description: 'Make call', fields: [{ key: 'to', label: 'To', type: 'text' }, { key: 'from', label: 'From', type: 'text' }] },
-
-    // --- PagerDuty ---
-    { id: 'pagerduty_trigger_incident', platform: 'PagerDuty', name: 'Trigger Incident', icon: AlertTriangle, color: '#06AC38', description: 'Trigger incident', fields: [{ key: 'service_id', label: 'Service ID', type: 'text' }, { key: 'title', label: 'Title', type: 'text' }] },
-    { id: 'pagerduty_resolve_incident', platform: 'PagerDuty', name: 'Resolve Incident', icon: AlertTriangle, color: '#06AC38', description: 'Resolve incident', fields: [{ key: 'incident_id', label: 'Incident ID', type: 'text' }] },
 
     // --- GitHub ---
     { id: 'github_create_issue', platform: 'GitHub', name: 'Create Issue', icon: Github, color: '#181717', description: 'Open new issue', fields: [{ key: 'repo', label: 'Repository', type: 'text' }, { key: 'title', label: 'Title', type: 'text' }, { key: 'body', label: 'Body', type: 'textarea' }] },
@@ -397,19 +338,7 @@ export const SUPPORTED_ACTIONS: ActionDefinition[] = [
     { id: 'supabase_update', platform: 'Supabase', name: 'Update Rows', icon: Database, color: '#3ECF8E', description: 'Update rows', fields: [{ key: 'table', label: 'Table', type: 'text' }, { key: 'data', label: 'Data (JSON)', type: 'textarea' }, { key: 'filter', label: 'Filter (JSON)', type: 'textarea' }] },
     { id: 'supabase_delete', platform: 'Supabase', name: 'Delete Rows', icon: Database, color: '#3ECF8E', description: 'Delete rows', fields: [{ key: 'table', label: 'Table', type: 'text' }, { key: 'filter', label: 'Filter (JSON)', type: 'textarea' }] },
 
-    // --- MySQL ---
-    { id: 'mysql_query', platform: 'MySQL', name: 'Run Query', icon: Database, color: '#4479A1', description: 'Execute SQL query', fields: [{ key: 'query', label: 'SQL', type: 'textarea' }] },
 
-    // --- Redis ---
-    { id: 'redis_set', platform: 'Redis', name: 'Set Key', icon: Database, color: '#DC382D', description: 'Set key', fields: [{ key: 'key', label: 'Key', type: 'text' }, { key: 'value', label: 'Value', type: 'text' }] },
-    { id: 'redis_get', platform: 'Redis', name: 'Get Key', icon: Database, color: '#DC382D', description: 'Get key', fields: [{ key: 'key', label: 'Key', type: 'text' }] },
-    { id: 'redis_delete', platform: 'Redis', name: 'Delete Key', icon: Database, color: '#DC382D', description: 'Delete key', fields: [{ key: 'key', label: 'Key', type: 'text' }] },
-
-    // --- Amazon S3 ---
-    { id: 's3_upload_file', platform: 'Amazon S3', name: 'Upload File', icon: Cloud, color: '#FF9900', description: 'Upload file', fields: [{ key: 'bucket', label: 'Bucket', type: 'text' }, { key: 'key', label: 'Key', type: 'text' }, { key: 'file_url', label: 'File URL', type: 'text' }] },
-    { id: 's3_download_file', platform: 'Amazon S3', name: 'Download File', icon: Cloud, color: '#FF9900', description: 'Download file', fields: [{ key: 'bucket', label: 'Bucket', type: 'text' }, { key: 'key', label: 'Key', type: 'text' }] },
-    { id: 's3_delete_object', platform: 'Amazon S3', name: 'Delete Object', icon: Cloud, color: '#FF9900', description: 'Delete object', fields: [{ key: 'bucket', label: 'Bucket', type: 'text' }, { key: 'key', label: 'Key', type: 'text' }] },
-    { id: 's3_list_objects', platform: 'Amazon S3', name: 'List Objects', icon: Cloud, color: '#FF9900', description: 'List objects', fields: [{ key: 'bucket', label: 'Bucket', type: 'text' }, { key: 'prefix', label: 'Prefix', type: 'text' }] },
 
     // --- Stripe ---
     { id: 'stripe_list_customers', platform: 'Stripe', name: 'List Customers', icon: CreditCard, color: '#008CDD', description: 'List customers', fields: [{ key: 'limit', label: 'Limit', type: 'number' }] },
@@ -436,8 +365,7 @@ export const SUPPORTED_ACTIONS: ActionDefinition[] = [
     { id: 'k8s_list_pods', platform: 'Kubernetes', name: 'List Pods', icon: Container, color: '#326CE5', description: 'List pods in namespace', fields: [{ key: 'namespace', label: 'Namespace', type: 'text', placeholder: 'default' }] },
     { id: 'k8s_get_logs', platform: 'Kubernetes', name: 'Get Logs', icon: FileText, color: '#326CE5', description: 'Get pod logs', fields: [{ key: 'namespace', label: 'Namespace', type: 'text' }, { key: 'pod_name', label: 'Pod Name', type: 'text' }] },
 
-    { id: 'http_request', platform: 'Generic', name: 'HTTP Request', icon: Globe, color: '#22c55e', description: 'HTTP request', fields: [{ key: 'url', label: 'URL', type: 'text' }, { key: 'method', label: 'Method', type: 'select', options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] }, { key: 'headers', label: 'Headers (JSON)', type: 'textarea' }, { key: 'body', label: 'Body (JSON)', type: 'textarea' }] },
-    { id: 'script_run', platform: 'System', name: 'Run Script', icon: Terminal, color: '#f59e0b', description: 'Execute script', fields: [{ key: 'code', label: 'Code', type: 'textarea' }] }
+
 ];
 
 export const getAction = (id: string): ActionDefinition | undefined => {
@@ -456,30 +384,5 @@ export const PLATFORM_ICONS: Record<string, any> = {
     'YouTube': Youtube,
     'WhatsApp': MessageCircle, // Proxy
     'Google Chat': MessageSquare, // Proxy
-    'Reddit': MessageCircle, // Proxy
-    'Google Docs': FileText,
-    'Google Sheets': Sheet,
-    'Airtable': Table, // Proxy
-    'Todoist': CheckSquare, // Proxy
-    'GitHub': Github,
-    'Supabase': Database,
-    'MySQL': Database,
-    'Redis': Database,
-    'Amazon S3': Cloud,
-    'Stripe': CreditCard,
-    'Vercel': Globe,
-    'Docker': Container,
-    'Google Drive': Cloud,
-    'AWS Cloud': Cloud,
-    'Google Cloud': Cloud,
-    'Kubernetes': Container,
-    'Trello': Trello,
-    'Jira': Table, // Proxy
-    'Asana': CheckSquare,
-    'Zoom': Video,
-    'Twilio': Phone,
-    'PagerDuty': AlertTriangle,
-    'Generic': Globe,
-    'System': Terminal,
-    'Excel': Table
+
 };

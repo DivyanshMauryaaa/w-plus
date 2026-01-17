@@ -11,8 +11,9 @@ import { MarkdownRenderer } from '@/components/markdown-renderer'
 import { TodoListCard } from '@/components/TodoListCard'
 import { WorkflowBoard } from '@/components/workflow/WorkflowBoard'
 import { ConnectionsManager } from '@/components/workflow/ConnectionsManager'
-import { ActionType } from '@/lib/integrations'
+import { ActionType, SUPPORTED_ACTIONS } from '@/lib/integrations'
 import { Textarea } from '@/components/ui/textarea'
+import { useConnectedPlatforms } from '@/hooks/useConnectedPlatforms'
 
 export default function ChatbotUI() {
   const { user } = useUser()
@@ -29,6 +30,8 @@ export default function ChatbotUI() {
   const [enabledActions, setEnabledActions] = useState<ActionType[]>([
     'calendar_create_event', 'calendar_get_events', 'gmail_send_email', 'gmail_search', 'slack_send_message' // Defaults
   ]);
+
+  const { configuredPlatforms } = useConnectedPlatforms();
 
   const toggleAction = (id: ActionType) => {
     setEnabledActions(prev =>
@@ -189,7 +192,14 @@ export default function ChatbotUI() {
           messages: [...messages, { role: 'user', content: userMessage }],
           previous_chats: previousChats,
           context: contextString,
-          connected_contexts: enabledActions // Send actions to AI
+          connected_contexts: enabledActions.filter(actionId => {
+            // Only send actions if their platform is configured!
+            const actionDef = SUPPORTED_ACTIONS.find(a => a.id === actionId);
+            if (!actionDef) return false;
+            // If platform is Generic or System, always allow? Maybe.
+            if (actionDef.platform === 'Generic' || actionDef.platform === 'System') return true;
+            return configuredPlatforms[actionDef.platform];
+          }) // Send actions to AI
         }),
       })
 
@@ -447,7 +457,7 @@ export default function ChatbotUI() {
   return (
     <div className="flex w-full gap-2 h-[89vh]">
       {/* Sidebar */}
-      <div className="w-[20%] p-3 border-r-2 border-t-2 rounded-tr-xl border-border flex flex-col gap-4">
+      <div className="w-[400px] p-3 border-r-2 border-t-2 rounded-tr-xl border-border flex flex-col gap-4">
         <Button
           onClick={createNewChat}
           className="w-full gap-2"

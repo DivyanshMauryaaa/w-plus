@@ -5,16 +5,18 @@ import { Button } from '@/components/ui/button';
 import { SUPPORTED_ACTIONS, ActionType } from '@/lib/integrations';
 import { Check, Plus, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { CredentialsDialog, CREDENTIAL_KEYS, CREDENTIAL_SCHEMAS } from './CredentialsDialog';
+import { useConnectedPlatforms } from '@/hooks/useConnectedPlatforms';
 
 interface ConnectionsManagerProps {
     connectedIds: ActionType[];
     onToggle: (id: ActionType) => void;
+    showOnlyConnected?: boolean;
 }
 
-export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManagerProps) => {
+export const ConnectionsManager = ({ connectedIds, onToggle, showOnlyConnected = false }: ConnectionsManagerProps) => {
     const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
     // Track which platforms have keys in local storage OR oauth in DB
-    const [configuredPlatforms, setConfiguredPlatforms] = useState<Record<string, boolean>>({});
+    const { configuredPlatforms, checkConfig } = useConnectedPlatforms();
 
     // Platforms that support OAuth flow
     const OAUTH_PROVIDERS = [
@@ -24,69 +26,6 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
 
     // State for accordion
     const [isExpanded, setIsExpanded] = useState(false);
-
-    const checkConfig = async () => {
-        const status: Record<string, boolean> = {};
-
-        // 1. Check Local Storage (Manual Keys)
-        // We need to check not just if the key exists, but if it has content.
-        // For new schema-based ones, the key is e.g. CREDENTIALS_AWS_CLOUD
-        Object.keys(CREDENTIAL_SCHEMAS).forEach(p => {
-            const key = `CREDENTIALS_${p.toUpperCase().replace(/\s+/g, '_')}`;
-            if (localStorage.getItem(key)) status[p] = true;
-        });
-
-        Object.keys(CREDENTIAL_KEYS).forEach(platform => {
-            const key = CREDENTIAL_KEYS[platform];
-            if (localStorage.getItem(key)) status[platform] = true;
-        });
-
-        // 2. Check Backend (OAuth)
-        try {
-            const res = await fetch('/api/integrations/status');
-            if (res.ok) {
-                const data = await res.json();
-                if (data.connections) {
-                    const map = data.connections;
-                    if (map['google']) {
-                        status['Google Calendar'] = true;
-                        status['Gmail'] = true;
-                        status['Google Drive'] = true;
-                        status['Google'] = true;
-                    }
-                    if (map['slack']) status['Slack'] = true;
-                    if (map['notion']) status['Notion'] = true;
-
-                    if (map['x']) status['X (Twitter)'] = true;
-                    if (map['instagram']) status['Instagram'] = true;
-                    if (map['linkedin']) status['LinkedIn'] = true;
-                    if (map['github']) status['GitHub'] = true;
-                    if (map['youtube']) status['YouTube'] = true;
-
-                    // New OAuths
-                    if (map['vercel']) status['Vercel'] = true;
-                    if (map['trello']) status['Trello'] = true;
-                    if (map['microsoft']) status['Excel'] = true;
-                    if (map['meta']) status['WhatsApp'] = true;
-                }
-            }
-        } catch (e) {
-            console.error("Failed to check integration status", e);
-        }
-
-        setConfiguredPlatforms(status);
-    };
-
-    // Check on mount and periodically or when dialog closes
-    useEffect(() => {
-        checkConfig();
-        window.addEventListener('storage', checkConfig);
-        // Also check if URL has success param (returned from OAuth)
-        if (typeof window !== 'undefined' && window.location.search.includes('success=true')) {
-            checkConfig();
-        }
-        return () => window.removeEventListener('storage', checkConfig);
-    }, []);
 
     // Also re-check when we close the dialog
     const handleDialogChange = (open: boolean) => {
@@ -131,7 +70,18 @@ export const ConnectionsManager = ({ connectedIds, onToggle }: ConnectionsManage
     };
 
     // 1. Group actions by platform
-    const platforms = Array.from(new Set(SUPPORTED_ACTIONS.map(a => a.platform))).sort();
+    let platforms = Array.from(new Set(SUPPORTED_ACTIONS.map(a => a.platform))).sort();
+
+    // Filter if showOnlyConnected
+    if (showOnlyConnected) {
+        platforms = platforms.filter(p => {
+            // Check if connected based on connectedIds (actions enabled) or configuredPlatforms (auth present)
+            // Usually configuredPlatforms is the source of truth for "Account Connected".
+            // connectedIds tracks "Action Enabled".
+            // We want to show platforms that are "Configured" (Logged in).
+            return configuredPlatforms[p];
+        });
+    }
 
     const handlePlatformToggle = (platform: string) => {
         const platformActions = SUPPORTED_ACTIONS.filter(a => a.platform === platform);
